@@ -21,7 +21,11 @@ import { loadConfig } from "./config.js";
 import { loadState, saveState, setLastError } from "./state.js";
 import { toQuotaSnapshot, probeClaudeUsage } from "./claude-usage.js";
 import { buildLaunchAgentPlist, createLaunchAgentPaths } from "./launchd.js";
-import { probeCodexBarUsage, renderDefaultAggregateStatus } from "./codexbar.js";
+import {
+  hasUsableAggregateData,
+  probeCodexBarUsage,
+  renderDefaultAggregateStatus,
+} from "./codexbar.js";
 import {
   getSlackToken,
   getSlackProfile,
@@ -114,7 +118,9 @@ function fallbackFormat(snapshot: QuotaSnapshot): FormatResult {
 async function formatAggregateStatus(
   runtime: Runtime,
   snapshot: AggregateSnapshot,
-): Promise<FormatResult> {
+): Promise<FormatResult | null> {
+  if (!hasUsableAggregateData(snapshot)) return null;
+
   try {
     const formatFn = await loadFormatFn(runtime.formatPath);
     const result = formatFn(snapshot);
@@ -141,13 +147,15 @@ export async function handleRefresh(
   if (options.dryRun) {
     const config = await loadConfig(runtime.configPath);
     const aggregate = await probeCodexBarUsage(runtime, config.codexbar);
-    const { statusText, statusEmoji } = await formatAggregateStatus(
+    const formatted = await formatAggregateStatus(
       runtime,
       aggregate,
     );
+    if (!formatted) return null;
+
     return {
-      status_text: statusText.slice(0, 100),
-      status_emoji: statusEmoji,
+      status_text: formatted.statusText.slice(0, 100),
+      status_emoji: formatted.statusEmoji,
       status_expiration: computeExpiration(
         runtime.now(),
         config.statusLeaseSeconds,
@@ -183,9 +191,7 @@ export async function handleRefresh(
     }
 
     const hasUsableAggregate = aggregate
-      ? aggregate.providers.some(
-          (provider) => provider.windows.length > 0 || provider.credits,
-        )
+      ? hasUsableAggregateData(aggregate)
       : false;
 
     if (aggregate && hasUsableAggregate) {
@@ -193,22 +199,23 @@ export async function handleRefresh(
       state.lastQuotaProbeAt = aggregate.capturedAt;
     }
 
-    const snapshot = hasUsableAggregate
-      ? aggregate!
-      : (state.lastAggregateSnapshot ?? aggregate);
-
-    if (!snapshot) {
+    if (!aggregate || !hasUsableAggregate) {
       await saveState(runtime.statePath, state);
       return null;
     }
 
-    const { statusText, statusEmoji } = await formatAggregateStatus(
+    const formatted = await formatAggregateStatus(
       runtime,
-      snapshot,
+      aggregate,
     );
+    if (!formatted) {
+      await saveState(runtime.statePath, state);
+      return null;
+    }
+
     const desiredProfile: SlackProfile = {
-      status_text: statusText.slice(0, 100),
-      status_emoji: statusEmoji,
+      status_text: formatted.statusText.slice(0, 100),
+      status_emoji: formatted.statusEmoji,
       status_expiration: computeExpiration(now, config.statusLeaseSeconds),
     };
 

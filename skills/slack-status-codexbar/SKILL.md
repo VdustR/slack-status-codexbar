@@ -156,6 +156,8 @@ Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
 
 The built-in formatter hides providers that only return errors. It appends reset time with `@` for each displayed rate-limit window when the CodexBar widget snapshot or CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, it shows an approximate label such as `@~5h`.
 
+If CodexBar returns no usable provider windows or credit data, skip the Slack profile update. Do not write a placeholder unavailable status.
+
 Emoji style is user-facing. Discuss it with the user before changing the default or adding a custom formatter. The built-in formatter continues the original Claude Slack status style: `:battery:`, `:low_battery:`, `:warning:`, and `:no_entry:`. It preserves the original per-window threshold logic: short windows use `40/20` low/warning thresholds, seven-day windows use `29/14`, and the final emoji comes from the most severe usable rate-limit window across displayed providers; error-only providers are ignored after filtering.
 
 Custom `format.mjs` may export:

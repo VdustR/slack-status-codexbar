@@ -133,4 +133,91 @@ describe("handleRefresh", () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("does not write a Slack status when CodexBar has no usable data", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ambient-empty-"));
+    let slackSetCount = 0;
+    let currentProfile: SlackProfile = {
+      status_text: "In focus",
+      status_emoji: ":spiral_calendar_pad:",
+      status_expiration: 0,
+    };
+
+    const runtime = createRuntime({
+      appHome: path.join(tempDir, "app"),
+      env: { HOME: tempDir, SLACK_STATUS_USER_TOKEN: "test-token" } as NodeJS.ProcessEnv,
+      now: () => Date.parse("2026-05-16T08:36:48.083Z"),
+      execFile: async () => ({
+        stdout: JSON.stringify([
+          {
+            provider: "codex",
+            source: "codex-cli",
+            error: {
+              kind: "provider",
+              code: 1,
+              message: "CodexBar provider unavailable.",
+            },
+          },
+        ]),
+        stderr: "",
+      }),
+      fetchImpl: (async (url: string | URL | Request, options?: RequestInit) => {
+        const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+        if (urlStr.endsWith("/users.profile.set")) {
+          slackSetCount++;
+          const body = JSON.parse(options?.body as string) as { profile: SlackProfile };
+          currentProfile = { ...currentProfile, ...body.profile };
+          return jsonResponse(200, { ok: true, profile: currentProfile });
+        }
+        throw new Error(`Unexpected: ${urlStr}`);
+      }) as typeof globalThis.fetch,
+    });
+
+    try {
+      const profile = await handleRefresh(runtime);
+
+      expect(profile).toBeNull();
+      expect(slackSetCount).toBe(0);
+      expect(currentProfile).toEqual({
+        status_text: "In focus",
+        status_emoji: ":spiral_calendar_pad:",
+        status_expiration: 0,
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("dry-run returns null when CodexBar has no usable data", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ambient-empty-dry-run-"));
+    const runtime = createRuntime({
+      appHome: path.join(tempDir, "app"),
+      env: { HOME: tempDir } as NodeJS.ProcessEnv,
+      now: () => Date.parse("2026-05-16T08:36:48.083Z"),
+      execFile: async () => ({
+        stdout: JSON.stringify([
+          {
+            provider: "codex",
+            source: "codex-cli",
+            error: {
+              kind: "provider",
+              code: 1,
+              message: "CodexBar provider unavailable.",
+            },
+          },
+        ]),
+        stderr: "",
+      }),
+    });
+
+    try {
+      const profile = await handleRefresh(runtime, { dryRun: true });
+
+      expect(profile).toBeNull();
+      await expect(fs.access(runtime.statePath)).rejects.toThrow();
+      await expect(fs.access(runtime.logPath)).rejects.toThrow();
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });

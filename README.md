@@ -4,8 +4,10 @@ Unofficial Slack status integration powered by CodexBar.
 
 SlackStatusCodexBar reads CodexBar's local widget snapshot and syncs a compact multi-provider summary into your Slack custom status.
 
+Slack renders the emoji separately from the status text. With the built-in formatter, a healthy status appears like this in Slack:
+
 ```text
-Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
+🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
 ```
 
 ## Design
@@ -29,6 +31,29 @@ codexbar usage --format json --json-only
 ```
 
 The fallback intentionally does not pass `--provider` or `--source`.
+
+## Slack Status Examples
+
+The built-in formatter writes Slack profile fields like:
+
+```json
+{
+  "status_emoji": ":battery:",
+  "status_text": "Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00",
+  "status_expiration": 0
+}
+```
+
+Slack then displays the emoji and text together:
+
+| Slack display | `status_emoji` | Example `status_text` | Meaning |
+| --- | --- | --- | --- |
+| 🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00 | `:battery:` | `Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00` | Healthy quota across displayed providers. |
+| 🪫 Codex 27%@18:34/42%@5/19 08:11 | `:low_battery:` | `Codex 27%@18:34/42%@5/19 08:11` | A displayed window is low, but not critical. |
+| ⚠️ Codex 15%@18:34/90%@5/19 08:10 | `:warning:` | `Codex 15%@18:34/90%@5/19 08:10` | A displayed short window is at the warning threshold. |
+| ⛔ Codex 0%@18:34/42%@5/19 08:11 | `:no_entry:` | `Codex 0%@18:34/42%@5/19 08:11` | A displayed quota window is exhausted. |
+
+`@18:34` and `@5/19 08:10` are compact reset labels. Approximate labels such as `@~5h` are used when CodexBar only reports the window duration.
 
 ## Runtime Paths
 
@@ -75,7 +100,9 @@ SlackStatusCodexBar does not migrate or remove older Claude-specific hook instal
 
 The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when the CodexBar widget snapshot or CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
 
-Default emoji continue the original Claude Slack status style: `:battery:`, `:low_battery:`, `:warning:`, and `:no_entry:`. Short windows use the original `40/20` low/warning thresholds, seven-day windows use `29/14`, and the chosen emoji comes from the most severe displayed quota window.
+If CodexBar returns no usable provider windows or credit data, SlackStatusCodexBar skips the Slack profile update instead of writing an unavailable status. For `refresh --dry-run`, this returns `ok: false` with `profile: null`.
+
+Default emoji continue the original Claude Slack status style: 🔋 `:battery:`, 🪫 `:low_battery:`, ⚠️ `:warning:`, and ⛔ `:no_entry:`. Short windows use the original `40/20` low/warning thresholds, seven-day windows use `29/14`, and the chosen emoji comes from the most severe displayed quota window.
 
 ## License
 

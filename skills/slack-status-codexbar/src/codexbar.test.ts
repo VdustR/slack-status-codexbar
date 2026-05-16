@@ -498,10 +498,10 @@ describe("renderDefaultAggregateStatus", () => {
 
     const result = renderDefaultAggregateStatus(aggregate);
 
-    expect(result.statusText).toBe(
+    expect(result?.statusText).toBe(
       "Codex 25%@18:34/41%@5/19 08:11 · Claude 100%@~5h/100%@~7d · Gemini 100%@23h59/100%@23h59",
     );
-    expect(result.statusText.length).toBeLessThanOrEqual(100);
+    expect(result?.statusText.length).toBeLessThanOrEqual(100);
   });
 
   it("uses approximate reset labels when CodexBar only reports window duration", async () => {
