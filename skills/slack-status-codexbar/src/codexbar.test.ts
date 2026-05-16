@@ -195,7 +195,7 @@ describe("renderDefaultAggregateStatus", () => {
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText:
         "Codex 53%@18:34/46%@5/19 08:10 · Claude 78%@13:00/92%@5/20 09:00",
-      statusEmoji: ":large_green_circle:",
+      statusEmoji: ":battery:",
     });
   });
 
@@ -239,7 +239,77 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText: "Codex 27%@18:34/42%@5/19 08:11",
-      statusEmoji: ":large_yellow_circle:",
+      statusEmoji: ":low_battery:",
+    });
+  });
+
+  it("uses the original seven-day warning threshold for weekly windows", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "codex",
+          source: "openai-web",
+          usage: {
+            primary: {
+              usedPercent: 10,
+              windowMinutes: 300,
+              resetDescription: "18:34",
+            },
+            secondary: {
+              usedPercent: 80,
+              windowMinutes: 10080,
+              resetDescription: "May 19 08:10",
+            },
+          },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText: "Codex 90%@18:34/20%@5/19 08:10",
+      statusEmoji: ":low_battery:",
+    });
+  });
+
+  it("uses the original critical emoji for low short-window quota", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "codex",
+          source: "openai-web",
+          usage: {
+            primary: {
+              usedPercent: 85,
+              windowMinutes: 300,
+              resetDescription: "18:34",
+            },
+            secondary: {
+              usedPercent: 10,
+              windowMinutes: 10080,
+              resetDescription: "May 19 08:10",
+            },
+          },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText: "Codex 15%@18:34/90%@5/19 08:10",
+      statusEmoji: ":warning:",
     });
   });
 
@@ -327,7 +397,7 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText: "Claude 100%@~5h/100%@~7d",
-      statusEmoji: ":large_green_circle:",
+      statusEmoji: ":battery:",
     });
   });
 });

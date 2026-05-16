@@ -391,20 +391,28 @@ function worstSeverity(aggregate: AggregateSnapshot): number {
   let worst = 0;
   for (const provider of aggregate.providers) {
     for (const window of provider.windows) {
-      const left = window.percentLeft;
-      const level = left <= 0 ? 3 : left <= 20 ? 2 : left <= 40 ? 1 : 0;
-      worst = Math.max(worst, level);
+      worst = Math.max(worst, windowSeverity(window));
     }
   }
   return worst;
 }
 
+function windowSeverity(window: AggregateRateWindow): number {
+  const warn = window.windowMinutes === 10080 ? 29 : 40;
+  const critical = window.windowMinutes === 10080 ? 14 : 20;
+  const left = window.percentLeft;
+  if (left < 1) return 3;
+  if (left <= critical) return 2;
+  if (left <= warn) return 1;
+  return 0;
+}
+
 function severityEmoji(level: number): string {
   return (
     [
-      ":large_green_circle:",
-      ":large_yellow_circle:",
-      ":red_circle:",
+      ":battery:",
+      ":low_battery:",
+      ":warning:",
       ":no_entry:",
     ][level] ?? ":grey_question:"
   );

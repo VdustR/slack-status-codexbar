@@ -85,7 +85,7 @@ describe("handleRefresh", () => {
       expect(currentProfile.status_text).toBe(
         "Codex 53%@18:34/46%@5/19 08:10 · Claude 78%@13:00/92%@5/20 09:00",
       );
-      expect(currentProfile.status_emoji).toBe(":large_green_circle:");
+      expect(currentProfile.status_emoji).toBe(":battery:");
       expect(currentProfile.status_expiration).toBe(0);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
