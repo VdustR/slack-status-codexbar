@@ -243,7 +243,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
   });
 
-  it("uses the lowest remaining displayed window for emoji severity", async () => {
+  it("keeps the original seven-day threshold above the low cutoff", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
         {
@@ -274,7 +274,77 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText: "Codex 90%@18:34/30%@5/19 08:10",
+      statusEmoji: ":battery:",
+    });
+  });
+
+  it("uses the lowest remaining displayed window for emoji severity", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "codex",
+          source: "openai-web",
+          usage: {
+            primary: {
+              usedPercent: 10,
+              windowMinutes: 300,
+              resetDescription: "18:34",
+            },
+            secondary: {
+              usedPercent: 71,
+              windowMinutes: 10080,
+              resetDescription: "May 19 08:10",
+            },
+          },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText: "Codex 90%@18:34/29%@5/19 08:10",
       statusEmoji: ":low_battery:",
+    });
+  });
+
+  it("uses the original warning threshold for seven-day quota", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "codex",
+          source: "openai-web",
+          usage: {
+            primary: {
+              usedPercent: 10,
+              windowMinutes: 300,
+              resetDescription: "18:34",
+            },
+            secondary: {
+              usedPercent: 86,
+              windowMinutes: 10080,
+              resetDescription: "May 19 08:10",
+            },
+          },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText: "Codex 90%@18:34/14%@5/19 08:10",
+      statusEmoji: ":warning:",
     });
   });
 

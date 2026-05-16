@@ -399,10 +399,37 @@ function worstSeverity(aggregate: AggregateSnapshot): number {
 
 function windowSeverity(window: AggregateRateWindow): number {
   const left = window.percentLeft;
+  const thresholds = severityThresholdsForWindow(window);
   if (left < 1) return 3;
-  if (left <= 20) return 2;
-  if (left <= 40) return 1;
+  if (left <= thresholds.warning) return 2;
+  if (left <= thresholds.low) return 1;
   return 0;
+}
+
+function severityThresholdsForWindow(
+  window: AggregateRateWindow,
+): { low: number; warning: number } {
+  return isSevenDayWindow(window)
+    ? { low: 29, warning: 14 }
+    : { low: 40, warning: 20 };
+}
+
+function isSevenDayWindow(window: AggregateRateWindow): boolean {
+  const sevenDayMinutes = 7 * 24 * 60;
+  if (
+    typeof window.windowMinutes === "number" &&
+    Math.abs(window.windowMinutes - sevenDayMinutes) <= 60
+  ) {
+    return true;
+  }
+
+  const label = `${window.id} ${window.title}`.toLowerCase();
+  return (
+    label.includes("7d") ||
+    label.includes("7-day") ||
+    label.includes("seven day") ||
+    label.includes("seven-day")
+  );
 }
 
 function severityEmoji(level: number): string {

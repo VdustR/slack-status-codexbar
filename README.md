@@ -68,7 +68,7 @@ SlackStatusCodexBar does not migrate or remove older Claude-specific hook instal
 
 The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when CodexBar provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
 
-Default emoji continue the original Claude Slack status style: `:battery:`, `:low_battery:`, `:warning:`, and `:no_entry:`. The chosen emoji comes from the lowest remaining displayed quota window.
+Default emoji continue the original Claude Slack status style: `:battery:`, `:low_battery:`, `:warning:`, and `:no_entry:`. Short windows use the original `40/20` low/warning thresholds, seven-day windows use `29/14`, and the chosen emoji comes from the most severe displayed quota window.
 
 ## License
 
