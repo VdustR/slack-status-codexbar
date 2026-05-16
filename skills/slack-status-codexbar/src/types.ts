@@ -56,12 +56,14 @@ export interface ProviderAggregateSnapshot {
 }
 
 export interface AggregateSourceSnapshot {
-  kind: "codexbar-cli";
+  kind: "codexbar-cli" | "codexbar-widget-snapshot";
   command: string;
   providerSelection: "enabled" | "all" | "both" | string;
   sourceMode: "default" | "auto" | "web" | "cli" | "oauth" | "api";
   exitCode: number;
   stderrLines: number;
+  widgetSnapshotPath?: string | null;
+  widgetSnapshotAgeMs?: number | null;
 }
 
 export interface AggregateSnapshot {
@@ -147,6 +149,8 @@ export interface CodexBarConfig {
   timeoutMs: number;
   providerSelection: "enabled" | "all" | "both" | string;
   sourceMode: "default" | "auto" | "web" | "cli" | "oauth" | "api";
+  widgetSnapshotPath?: string | null;
+  widgetSnapshotMaxAgeMs?: number;
 }
 
 export interface LaunchdConfig {

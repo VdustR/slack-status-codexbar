@@ -12,6 +12,8 @@ export function createDefaultConfig(): AppConfig {
       timeoutMs: 45_000,
       providerSelection: "enabled",
       sourceMode: "default",
+      widgetSnapshotPath: null,
+      widgetSnapshotMaxAgeMs: 10 * 60_000,
     },
     launchd: {
       label: "dev.vdustr.slack-status-codexbar",

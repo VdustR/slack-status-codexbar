@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { probeCodexBarUsage, renderDefaultAggregateStatus } from "./codexbar.js";
 import type { Runtime } from "./types.js";
 
@@ -27,6 +30,63 @@ function runtimeWithExec(
 }
 
 describe("probeCodexBarUsage", () => {
+  it("prefers CodexBar widget snapshot and preserves GUI reset times", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "codexbar-widget-"));
+    const snapshotPath = path.join(tempDir, "widget-snapshot.json");
+    try {
+      await fs.writeFile(
+        snapshotPath,
+        JSON.stringify({
+          generatedAt: "2026-05-16T08:35:46Z",
+          enabledProviders: ["codex", "claude", "gemini"],
+          entries: [
+            {
+              provider: "claude",
+              source: "widget",
+              primary: {
+                usedPercent: 35,
+                windowMinutes: 300,
+                resetDescription: "May 16 at 8:00PM",
+                resetsAt: "2026-05-16T12:00:00Z",
+              },
+              secondary: {
+                usedPercent: 10,
+                windowMinutes: 10080,
+                resetDescription: "May 23 at 5:00AM",
+                resetsAt: "2026-05-22T21:00:01Z",
+              },
+              updatedAt: "2026-05-16T08:35:46Z",
+            },
+          ],
+        }),
+      );
+
+      const runtime = runtimeWithExec(async () => {
+        throw new Error("CLI should not run when widget snapshot is available");
+      });
+      const aggregate = await probeCodexBarUsage(runtime, {
+        command: "codexbar",
+        timeoutMs: 45_000,
+        providerSelection: "enabled",
+        sourceMode: "default",
+        widgetSnapshotPath: snapshotPath,
+        widgetSnapshotMaxAgeMs: 10 * 60_000,
+      });
+
+      expect(aggregate.source.kind).toBe("codexbar-widget-snapshot");
+      expect(aggregate.providers[0]!.provider).toBe("claude");
+      expect(aggregate.providers[0]!.windows[0]!.resetAt).toBe(
+        "2026-05-16T12:00:00Z",
+      );
+      expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+        statusText: "Claude 65%@5/16 20:00/90%@5/23 05:00",
+        statusEmoji: ":battery:",
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("uses CodexBar defaults by omitting provider and source overrides", async () => {
     const runtime = runtimeWithExec(async (file, args) => {
       expect(file).toBe("codexbar");
@@ -160,7 +220,7 @@ describe("renderDefaultAggregateStatus", () => {
             secondary: {
               usedPercent: 54,
               windowMinutes: 10080,
-              resetDescription: "May 19 08:10",
+              resetDescription: "May 19, 2026 at 08:10",
             },
             updatedAt: "2026-05-16T08:36:49Z",
           },

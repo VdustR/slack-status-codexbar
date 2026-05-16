@@ -8,9 +8,9 @@ Verify these without printing secrets:
 
 - Node 22 or newer is available.
 - `pnpm` is available for building the skill runtime.
-- `codexbar` is installed and runnable.
+- CodexBar app is installed and has written `widget-snapshot.json`.
+- `codexbar` is installed and runnable for fallback diagnostics.
 - `codexbar config validate` passes.
-- `codexbar usage --format json --json-only` returns JSON.
 - A Slack user token source exists, but do not print the value.
 
 ## Missing Dependencies
