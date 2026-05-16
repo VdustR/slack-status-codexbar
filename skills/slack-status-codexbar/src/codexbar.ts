@@ -398,12 +398,10 @@ function worstSeverity(aggregate: AggregateSnapshot): number {
 }
 
 function windowSeverity(window: AggregateRateWindow): number {
-  const warn = window.windowMinutes === 10080 ? 29 : 40;
-  const critical = window.windowMinutes === 10080 ? 14 : 20;
   const left = window.percentLeft;
   if (left < 1) return 3;
-  if (left <= critical) return 2;
-  if (left <= warn) return 1;
+  if (left <= 20) return 2;
+  if (left <= 40) return 1;
   return 0;
 }
 

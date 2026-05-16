@@ -243,7 +243,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
   });
 
-  it("uses the original seven-day warning threshold for weekly windows", async () => {
+  it("uses the lowest remaining displayed window for emoji severity", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
         {
@@ -256,7 +256,7 @@ describe("renderDefaultAggregateStatus", () => {
               resetDescription: "18:34",
             },
             secondary: {
-              usedPercent: 80,
+              usedPercent: 70,
               windowMinutes: 10080,
               resetDescription: "May 19 08:10",
             },
@@ -273,7 +273,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 90%@18:34/20%@5/19 08:10",
+      statusText: "Codex 90%@18:34/30%@5/19 08:10",
       statusEmoji: ":low_battery:",
     });
   });
