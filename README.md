@@ -2,10 +2,10 @@
 
 Unofficial Slack status integration powered by CodexBar.
 
-SlackStatusCodexBar reads usage from your local `codexbar` CLI and syncs a compact multi-provider summary into your Slack custom status.
+SlackStatusCodexBar reads CodexBar's local widget snapshot and syncs a compact multi-provider summary into your Slack custom status.
 
 ```text
-Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d
+Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
 ```
 
 ## Design
@@ -16,13 +16,19 @@ Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d
 - Slack-only ownership: this project handles Slack profile writes, throttling, ownership checks, logs, and formatting.
 - No auto-expiration by default: Slack `status_expiration` is `0`.
 
-By default the refresh command runs:
+By default refresh reads CodexBar's widget snapshot from the app group container:
+
+```text
+~/Library/Group Containers/Y5PE65HELJ.com.steipete.codexbar/widget-snapshot.json
+```
+
+If the snapshot is missing, stale, or invalid, the integration falls back to:
 
 ```bash
 codexbar usage --format json --json-only
 ```
 
-It intentionally does not pass `--provider` or `--source`.
+The fallback intentionally does not pass `--provider` or `--source`.
 
 ## Runtime Paths
 
@@ -36,7 +42,8 @@ It intentionally does not pass `--provider` or `--source`.
 
 - Node 22+
 - `pnpm`
-- CodexBar CLI installed as `codexbar`
+- CodexBar app installed and writing `widget-snapshot.json`
+- CodexBar CLI installed as `codexbar` for fallback diagnostics
 - Slack user token with `users.profile:read` and `users.profile:write`
   - `SLACK_STATUS_USER_TOKEN`, or
   - `SLACK_MCP_XOXP_TOKEN`
@@ -66,7 +73,7 @@ Secrets must stay separate from normal runtime config. Do not store Slack tokens
 
 SlackStatusCodexBar does not migrate or remove older Claude-specific hook installations. If another tool is also writing your Slack status, disable it manually before enabling this integration.
 
-The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when CodexBar provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
+The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when the CodexBar widget snapshot or CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
 
 Default emoji continue the original Claude Slack status style: `:battery:`, `:low_battery:`, `:warning:`, and `:no_entry:`. Short windows use the original `40/20` low/warning thresholds, seven-day windows use `29/14`, and the chosen emoji comes from the most severe displayed quota window.
 
