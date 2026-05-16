@@ -4,15 +4,9 @@
   "version": "0.1.0",
   "description": "Slack status integration powered by CodexBar usage providers.",
   "type": "module",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.1.2",
   "engines": {
     "node": ">=22"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite@>=7.0.0 <=7.3.1": "7.3.2",
-      "vite@>=7.1.0 <=7.3.1": "7.3.2"
-    }
   },
   "scripts": {
     "build": "esbuild src/hook.ts --bundle --platform=node --format=esm --outfile=dist/hook.mjs --target=node22",
@@ -21,9 +15,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "esbuild": "^0.25.0",
-    "typescript": "^5.8.0",
-    "vitest": "^3.1.0"
+    "@types/node": "^25.8.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
   }
 }
