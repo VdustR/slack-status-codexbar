@@ -107,16 +107,11 @@ export function buildCodexBarArgs(config: CodexBarConfig): string[] {
 
 export function renderDefaultAggregateStatus(
   aggregate: AggregateSnapshot,
-): FormatResult {
-  const usableProviders = aggregate.providers.filter(
-    (provider) => provider.windows.length > 0 || provider.credits,
-  );
+): FormatResult | null {
+  const usableProviders = aggregate.providers.filter(hasUsableProviderData);
 
   if (usableProviders.length === 0) {
-    return {
-      statusText: "CodexBar unavailable",
-      statusEmoji: ":large_yellow_circle:",
-    };
+    return null;
   }
 
   const statusText = usableProviders
@@ -140,6 +135,14 @@ export function renderDefaultAggregateStatus(
     statusText,
     statusEmoji: severityEmoji(worstSeverity(aggregate)),
   };
+}
+
+export function hasUsableAggregateData(aggregate: AggregateSnapshot): boolean {
+  return aggregate.providers.some(hasUsableProviderData);
+}
+
+function hasUsableProviderData(provider: ProviderAggregateSnapshot): boolean {
+  return provider.windows.length > 0 || Boolean(provider.credits);
 }
 
 function renderWindowStatus(window: AggregateRateWindow): string {
