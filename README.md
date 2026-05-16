@@ -2,12 +2,12 @@
 
 Unofficial Slack status integration powered by CodexBar.
 
-SlackStatusCodexBar reads usage from your local `codexbar` CLI and syncs a compact multi-provider summary into your Slack custom status.
+SlackStatusCodexBar reads CodexBar's local widget snapshot and syncs a compact multi-provider summary into your Slack custom status.
 
 Slack renders the emoji separately from the status text. With the built-in formatter, a healthy status appears like this in Slack:
 
 ```text
-🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d
+🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
 ```
 
 ## Design
@@ -18,13 +18,19 @@ Slack renders the emoji separately from the status text. With the built-in forma
 - Slack-only ownership: this project handles Slack profile writes, throttling, ownership checks, logs, and formatting.
 - No auto-expiration by default: Slack `status_expiration` is `0`.
 
-By default the refresh command runs:
+By default refresh reads CodexBar's widget snapshot from the app group container:
+
+```text
+~/Library/Group Containers/Y5PE65HELJ.com.steipete.codexbar/widget-snapshot.json
+```
+
+If the snapshot is missing, stale, or invalid, the integration falls back to:
 
 ```bash
 codexbar usage --format json --json-only
 ```
 
-It intentionally does not pass `--provider` or `--source`.
+The fallback intentionally does not pass `--provider` or `--source`.
 
 ## Slack Status Examples
 
@@ -33,7 +39,7 @@ The built-in formatter writes Slack profile fields like:
 ```json
 {
   "status_emoji": ":battery:",
-  "status_text": "Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d",
+  "status_text": "Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00",
   "status_expiration": 0
 }
 ```
@@ -42,7 +48,7 @@ Slack then displays the emoji and text together:
 
 | Slack display | `status_emoji` | Example `status_text` | Meaning |
 | --- | --- | --- | --- |
-| 🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d | `:battery:` | `Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d` | Healthy quota across displayed providers. |
+| 🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00 | `:battery:` | `Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00` | Healthy quota across displayed providers. |
 | 🪫 Codex 27%@18:34/42%@5/19 08:11 | `:low_battery:` | `Codex 27%@18:34/42%@5/19 08:11` | A displayed window is low, but not critical. |
 | ⚠️ Codex 15%@18:34/90%@5/19 08:10 | `:warning:` | `Codex 15%@18:34/90%@5/19 08:10` | A displayed short window is at the warning threshold. |
 | ⛔ Codex 0%@18:34/42%@5/19 08:11 | `:no_entry:` | `Codex 0%@18:34/42%@5/19 08:11` | A displayed quota window is exhausted. |
@@ -61,7 +67,8 @@ Slack then displays the emoji and text together:
 
 - Node 22+
 - `pnpm`
-- CodexBar CLI installed as `codexbar`
+- CodexBar app installed and writing `widget-snapshot.json`
+- CodexBar CLI installed as `codexbar` for fallback diagnostics
 - Slack user token with `users.profile:read` and `users.profile:write`
   - `SLACK_STATUS_USER_TOKEN`, or
   - `SLACK_MCP_XOXP_TOKEN`
@@ -91,7 +98,7 @@ Secrets must stay separate from normal runtime config. Do not store Slack tokens
 
 SlackStatusCodexBar does not migrate or remove older Claude-specific hook installations. If another tool is also writing your Slack status, disable it manually before enabling this integration.
 
-The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when CodexBar provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
+The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when the CodexBar widget snapshot or CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
 
 If CodexBar returns no usable provider windows or credit data, SlackStatusCodexBar skips the Slack profile update instead of writing an unavailable status. For `refresh --dry-run`, this returns `ok: false` with `profile: null`.
 

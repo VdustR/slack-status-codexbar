@@ -16,13 +16,19 @@ This skill is agent-neutral. CodexBar owns provider discovery and credentials; t
 - LaunchAgent: `~/Library/LaunchAgents/dev.vdustr.slack-status-codexbar.plist`
 - Refresh cadence: every 5 minutes
 - Slack status expiration: none (`status_expiration: 0`)
-- CodexBar command:
+- Primary CodexBar source:
+
+```text
+~/Library/Group Containers/Y5PE65HELJ.com.steipete.codexbar/widget-snapshot.json
+```
+
+- Fallback CodexBar command:
 
 ```bash
 codexbar usage --format json --json-only
 ```
 
-Do not pass `--provider` or `--source` by default. The integration should inherit enabled providers, source mode, order, token accounts, cookies, OAuth, and API keys from CodexBar.
+Do not pass `--provider` or `--source` by default in the fallback command. The integration should inherit enabled providers, source mode, order, token accounts, cookies, OAuth, and API keys from CodexBar. Prefer the widget snapshot because it matches the CodexBar GUI and includes app-side reset-time backfills.
 
 ## References
 
@@ -39,9 +45,9 @@ Check without printing secrets:
 1. Node 22+
 2. pnpm
 3. Dependencies installed in this skill root
-4. `codexbar` exists on PATH
-5. `codexbar config validate` passes
-6. `codexbar usage --format json --json-only` returns JSON
+4. CodexBar app is installed and can write `widget-snapshot.json`
+5. `codexbar` exists on PATH for fallback diagnostics
+6. `codexbar config validate` passes
 7. Slack user token exists:
    - `SLACK_STATUS_USER_TOKEN`, or
    - `SLACK_MCP_XOXP_TOKEN`
@@ -89,7 +95,9 @@ Default `config.json`:
     "command": "codexbar",
     "timeoutMs": 45000,
     "providerSelection": "enabled",
-    "sourceMode": "default"
+    "sourceMode": "default",
+    "widgetSnapshotPath": null,
+    "widgetSnapshotMaxAgeMs": 600000
   },
   "launchd": {
     "label": "dev.vdustr.slack-status-codexbar",
@@ -116,7 +124,7 @@ APP_HOME="${SLACK_STATUS_CODEXBAR_HOME:-$HOME/Library/Application Support/SlackS
 exec "<ENVCTL_PATH>" run --cwd "$APP_HOME" --home "$HOME" -- "<ABSOLUTE_NODE_PATH>" "$APP_HOME/hook.mjs" "$@"
 ```
 
-For LaunchAgent installs, set `codexbar.command` in the deployed `config.json` to the absolute `codexbar` path discovered during setup. This avoids depending on launchd PATH while still inheriting CodexBar provider settings.
+For LaunchAgent installs, set `codexbar.command` in the deployed `config.json` to the absolute `codexbar` path discovered during setup. This avoids depending on launchd PATH for fallback diagnostics while still inheriting CodexBar provider settings.
 
 ## LaunchAgent
 
@@ -143,10 +151,10 @@ node "$HOME/Library/Application Support/SlackStatusCodexBar/hook.mjs" refresh --
 If no custom formatter exists, the built-in formatter produces a compact provider summary, for example:
 
 ```text
-Codex 53%@18:34/46%@5/19 08:10 · Claude 100%@~5h/100%@~7d
+Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
 ```
 
-The built-in formatter hides providers that only return errors. It appends reset time with `@` for each displayed rate-limit window when CodexBar provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, it shows an approximate label such as `@~5h`.
+The built-in formatter hides providers that only return errors. It appends reset time with `@` for each displayed rate-limit window when the CodexBar widget snapshot or CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, it shows an approximate label such as `@~5h`.
 
 If CodexBar returns no usable provider windows or credit data, skip the Slack profile update. Do not write a placeholder unavailable status.
 
