@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "pnpm@11.1.2",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "build": "esbuild src/hook.ts --bundle --platform=node --format=esm --outfile=dist/hook.mjs --target=node22",
