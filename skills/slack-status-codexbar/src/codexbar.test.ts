@@ -237,6 +237,133 @@ describe("probeCodexBarUsage", () => {
     });
   });
 
+  it("replaces all base payloads for a provider when a source override returns multiple accounts", async () => {
+    const runtime = runtimeWithExec(async (_file, args) => {
+      if (args.includes("--provider")) {
+        return {
+          stdout: JSON.stringify([
+            {
+              provider: "claude",
+              source: "oauth",
+              account: "primary@example.com",
+              usage: {
+                primary: {
+                  usedPercent: 5,
+                  windowMinutes: 300,
+                  resetDescription: "May 18 at 2:00PM",
+                },
+              },
+            },
+            {
+              provider: "claude",
+              source: "oauth",
+              account: "secondary@example.com",
+              usage: {
+                primary: {
+                  usedPercent: 20,
+                  windowMinutes: 300,
+                  resetDescription: "May 18 at 3:00PM",
+                },
+              },
+            },
+          ]),
+          stderr: "",
+        };
+      }
+      return {
+        stdout: JSON.stringify([
+          {
+            provider: "codex",
+            source: "codex-cli",
+            usage: {
+              primary: {
+                usedPercent: 47,
+                windowMinutes: 300,
+                resetDescription: "18:34",
+              },
+            },
+          },
+          {
+            provider: "claude",
+            source: "web",
+            account: "primary@example.com",
+            usage: {
+              primary: {
+                usedPercent: 0,
+                windowMinutes: 300,
+              },
+            },
+          },
+          {
+            provider: "claude",
+            source: "web",
+            account: "secondary@example.com",
+            usage: {
+              primary: {
+                usedPercent: 0,
+                windowMinutes: 300,
+              },
+            },
+          },
+          {
+            provider: "gemini",
+            source: "cli",
+            usage: {
+              primary: {
+                usedPercent: 20,
+                windowMinutes: 1440,
+                resetDescription: "May 19 at 8:00AM",
+              },
+            },
+          },
+        ]),
+        stderr: "",
+      };
+    });
+
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      providerSourceOverrides: { claude: "oauth" },
+    });
+
+    expect(
+      aggregate.providers.map((provider) => ({
+        provider: provider.provider,
+        source: provider.source,
+        accountLabel: provider.accountLabel,
+        percentLeft: provider.windows[0]?.percentLeft,
+      })),
+    ).toEqual([
+      {
+        provider: "codex",
+        source: "codex-cli",
+        accountLabel: null,
+        percentLeft: 53,
+      },
+      {
+        provider: "claude",
+        source: "oauth",
+        accountLabel: "p***@example.com",
+        percentLeft: 95,
+      },
+      {
+        provider: "claude",
+        source: "oauth",
+        accountLabel: "s***@example.com",
+        percentLeft: 80,
+      },
+      {
+        provider: "gemini",
+        source: "cli",
+        accountLabel: null,
+        percentLeft: 80,
+      },
+    ]);
+  });
+
   it("keeps partial success payloads from non-zero CodexBar exits", async () => {
     const stdout = JSON.stringify([
       {

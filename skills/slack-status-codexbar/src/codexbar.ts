@@ -217,21 +217,46 @@ function mergeProviderPayloads(
   basePayloads: RawCodexBarProvider[],
   overridePayloads: RawCodexBarProvider[],
 ): RawCodexBarProvider[] {
-  const merged = [...basePayloads];
+  const overridesByProvider = new Map<string, RawCodexBarProvider[]>();
+  const providerlessOverrides: RawCodexBarProvider[] = [];
+
   for (const overridePayload of overridePayloads) {
     const provider = stringOrNull(overridePayload.provider);
     if (!provider) {
-      merged.push(overridePayload);
+      providerlessOverrides.push(overridePayload);
       continue;
     }
-    const index = merged.findIndex((payload) => payload.provider === provider);
-    if (index === -1) {
-      merged.push(overridePayload);
-      continue;
-    }
-    merged[index] = overridePayload;
+    const providerOverrides = overridesByProvider.get(provider) ?? [];
+    providerOverrides.push(overridePayload);
+    overridesByProvider.set(provider, providerOverrides);
   }
-  return merged;
+
+  if (overridesByProvider.size === 0) {
+    return [...basePayloads, ...providerlessOverrides];
+  }
+
+  const merged: RawCodexBarProvider[] = [];
+  const insertedProviders = new Set<string>();
+
+  for (const basePayload of basePayloads) {
+    const provider = stringOrNull(basePayload.provider);
+    if (provider && overridesByProvider.has(provider)) {
+      if (!insertedProviders.has(provider)) {
+        merged.push(...overridesByProvider.get(provider)!);
+        insertedProviders.add(provider);
+      }
+      continue;
+    }
+    merged.push(basePayload);
+  }
+
+  for (const [provider, providerOverrides] of overridesByProvider) {
+    if (!insertedProviders.has(provider)) {
+      merged.push(...providerOverrides);
+    }
+  }
+
+  return [...merged, ...providerlessOverrides];
 }
 
 function ensureOverridePayloadProvider(
