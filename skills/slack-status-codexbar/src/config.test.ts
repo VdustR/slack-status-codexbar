@@ -26,6 +26,9 @@ describe("config", () => {
       timeoutMs: 45_000,
       providerSelection: "enabled",
       sourceMode: "default",
+      providerSourceOverrides: {
+        claude: "oauth",
+      },
     });
     expect(config.launchd.startIntervalSeconds).toBe(300);
   });

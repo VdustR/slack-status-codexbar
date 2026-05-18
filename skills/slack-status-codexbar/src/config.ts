@@ -12,6 +12,9 @@ export function createDefaultConfig(): AppConfig {
       timeoutMs: 45_000,
       providerSelection: "enabled",
       sourceMode: "default",
+      providerSourceOverrides: {
+        claude: "oauth",
+      },
     },
     launchd: {
       label: "dev.vdustr.slack-status-codexbar",

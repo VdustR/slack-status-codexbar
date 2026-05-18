@@ -132,6 +132,111 @@ describe("probeCodexBarUsage", () => {
     });
   });
 
+  it("overrides individual provider sources without changing the default provider selection", async () => {
+    const calls: string[][] = [];
+    const runtime = runtimeWithExec(async (file, args) => {
+      expect(file).toBe("codexbar");
+      calls.push(args);
+      if (args.includes("--provider")) {
+        return {
+          stdout: JSON.stringify({
+            provider: "claude",
+            source: "oauth",
+            usage: {
+              primary: {
+                usedPercent: 5,
+                windowMinutes: 300,
+                resetDescription: "May 18 at 2:00PM",
+              },
+              secondary: {
+                usedPercent: 11,
+                windowMinutes: 10080,
+                resetDescription: "May 23 at 5:00AM",
+              },
+            },
+          }),
+          stderr: "",
+        };
+      }
+      return {
+        stdout: JSON.stringify([
+          {
+            provider: "codex",
+            source: "codex-cli",
+            usage: {
+              primary: {
+                usedPercent: 47,
+                windowMinutes: 300,
+                resetDescription: "18:34",
+              },
+            },
+          },
+          {
+            provider: "claude",
+            source: "web",
+            usage: {
+              primary: {
+                usedPercent: 0,
+                windowMinutes: 300,
+                resetDescription: "May 18 at 2:00PM",
+              },
+              secondary: {
+                usedPercent: 0,
+                windowMinutes: 10080,
+                resetDescription: "May 23 at 5:00AM",
+              },
+            },
+          },
+          {
+            provider: "gemini",
+            source: "cli",
+            usage: {
+              primary: {
+                usedPercent: 20,
+                windowMinutes: 1440,
+                resetDescription: "May 19 at 8:00AM",
+              },
+            },
+          },
+        ]),
+        stderr: "",
+      };
+    });
+
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      providerSourceOverrides: { claude: "oauth" },
+    });
+
+    expect(calls).toEqual([
+      ["usage", "--format", "json", "--json-only"],
+      [
+        "usage",
+        "--provider",
+        "claude",
+        "--source",
+        "oauth",
+        "--format",
+        "json",
+        "--json-only",
+      ],
+    ]);
+    expect(aggregate.providers.map((provider) => provider.provider)).toEqual([
+      "codex",
+      "claude",
+      "gemini",
+    ]);
+    expect(aggregate.providers[1]!.source).toBe("oauth");
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText:
+        "Codex 53%@18:34 · Claude 95%@5/18 14:00/89%@5/23 05:00 · Gemini 80%@5/19 08:00",
+      statusEmoji: ":battery:",
+    });
+  });
+
   it("keeps partial success payloads from non-zero CodexBar exits", async () => {
     const stdout = JSON.stringify([
       {
