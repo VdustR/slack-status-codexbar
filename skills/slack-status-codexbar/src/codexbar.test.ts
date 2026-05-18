@@ -83,6 +83,7 @@ describe("probeCodexBarUsage", () => {
                   primary: {
                     usedPercent: 47,
                     windowMinutes: 300,
+                    resetDescription: "18:34",
                     resetsAt: "2026-05-16T10:34:20Z",
                   },
                   updatedAt: "2026-05-16T08:36:49Z",
@@ -108,7 +109,7 @@ describe("probeCodexBarUsage", () => {
         "2026-05-16T10:34:20Z",
       );
       expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-        statusText: "Codex 53%@5/16 18:34",
+        statusText: "Codex 53%@18:34",
         statusEmoji: ":battery:",
       });
     } finally {
