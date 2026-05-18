@@ -13,7 +13,7 @@ Slack renders the emoji separately from the status text. With the built-in forma
 ## Design
 
 - Agent-neutral: not tied to Claude Code, Codex, or any single provider.
-- CodexBar-owned provider configuration: enabled providers, source mode, token accounts, cookies, OAuth, API keys, and provider order are inherited from CodexBar CLI defaults.
+- CodexBar-owned provider configuration: enabled providers, source mode, token accounts, cookies, OAuth, API keys, and provider order are inherited from CodexBar CLI defaults, with optional provider-specific CLI source overrides.
 - LaunchAgent-based ambient refresh: macOS `launchd` runs refresh on an interval so the status remains active after setup.
 - Slack-only ownership: this project handles Slack profile writes, throttling, ownership checks, logs, and formatting.
 - No auto-expiration by default: Slack `status_expiration` is `0`.
@@ -24,7 +24,13 @@ By default refresh runs:
 codexbar usage --format json --json-only
 ```
 
-The command intentionally does not pass `--provider` or `--source`, so CodexBar decides the enabled providers and source mode. This integration does not read CodexBar's widget snapshot cache or app group container.
+The primary command intentionally does not pass `--provider` or `--source`, so CodexBar decides the enabled providers and source mode. The default config also runs a provider-specific CLI override for Claude:
+
+```bash
+codexbar usage --provider claude --source oauth --format json --json-only
+```
+
+The Claude override matches CodexBar app behavior for accounts where the CLI's default Claude web source can report stale zero usage. This integration still stays CLI-only and does not read CodexBar's widget snapshot cache or app group container.
 
 ## Slack Status Examples
 

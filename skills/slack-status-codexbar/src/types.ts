@@ -55,11 +55,22 @@ export interface ProviderAggregateSnapshot {
   error: ProviderErrorSnapshot | null;
 }
 
+export type CodexBarSourceMode =
+  | "default"
+  | "auto"
+  | "web"
+  | "cli"
+  | "oauth"
+  | "api"
+  | string;
+
 export interface AggregateSourceSnapshot {
   kind: "codexbar-cli";
   command: string;
   providerSelection: "enabled" | "all" | "both" | string;
-  sourceMode: "default" | "auto" | "web" | "cli" | "oauth" | "api";
+  sourceMode: CodexBarSourceMode;
+  providerSourceOverrides: Record<string, CodexBarSourceMode>;
+  probeCount: number;
   exitCode: number;
   stderrLines: number;
 }
@@ -146,7 +157,8 @@ export interface CodexBarConfig {
   command: string;
   timeoutMs: number;
   providerSelection: "enabled" | "all" | "both" | string;
-  sourceMode: "default" | "auto" | "web" | "cli" | "oauth" | "api";
+  sourceMode: CodexBarSourceMode;
+  providerSourceOverrides?: Record<string, CodexBarSourceMode>;
 }
 
 export interface LaunchdConfig {

@@ -22,7 +22,13 @@ This skill is agent-neutral. CodexBar owns provider discovery and credentials; t
 codexbar usage --format json --json-only
 ```
 
-Do not pass `--provider` or `--source` by default. The integration should inherit enabled providers, source mode, order, token accounts, cookies, OAuth, and API keys from CodexBar CLI defaults. Do not read CodexBar's widget snapshot cache or app group container.
+The primary command should not pass `--provider` or `--source`; it should inherit enabled providers, source mode, order, token accounts, cookies, OAuth, and API keys from CodexBar CLI defaults. Provider-specific source overrides may run additional CodexBar CLI probes when needed. The default override is:
+
+```bash
+codexbar usage --provider claude --source oauth --format json --json-only
+```
+
+Do not read CodexBar's widget snapshot cache or app group container.
 
 ## References
 
@@ -89,7 +95,10 @@ Default `config.json`:
     "command": "codexbar",
     "timeoutMs": 45000,
     "providerSelection": "enabled",
-    "sourceMode": "default"
+    "sourceMode": "default",
+    "providerSourceOverrides": {
+      "claude": "oauth"
+    }
   },
   "launchd": {
     "label": "dev.vdustr.slack-status-codexbar",

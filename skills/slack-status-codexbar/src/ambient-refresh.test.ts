@@ -20,6 +20,7 @@ describe("handleRefresh", () => {
       status_emoji: "",
       status_expiration: 0,
     };
+    const calls: string[][] = [];
 
     const runtime = createRuntime({
       appHome: path.join(tempDir, "app"),
@@ -27,7 +28,29 @@ describe("handleRefresh", () => {
       now: () => Date.parse("2026-05-16T08:36:48.083Z"),
       execFile: async (file, args) => {
         expect(file).toBe("codexbar");
-        expect(args).toEqual(["usage", "--format", "json", "--json-only"]);
+        calls.push(args);
+        if (args.includes("--provider")) {
+          return {
+            stdout: JSON.stringify({
+              provider: "claude",
+              source: "oauth",
+              usage: {
+                primary: {
+                  usedPercent: 22,
+                  windowMinutes: 300,
+                  resetDescription: "13:00",
+                },
+                secondary: {
+                  usedPercent: 8,
+                  windowMinutes: 10080,
+                  resetDescription: "May 20 09:00",
+                },
+                updatedAt: "2026-05-16T08:37:12Z",
+              },
+            }),
+            stderr: "",
+          };
+        }
         return {
           stdout: JSON.stringify([
             {
@@ -85,6 +108,19 @@ describe("handleRefresh", () => {
       expect(currentProfile.status_text).toBe(
         "Codex 53%@18:34/46%@5/19 08:10 · Claude 78%@13:00/92%@5/20 09:00",
       );
+      expect(calls).toEqual([
+        ["usage", "--format", "json", "--json-only"],
+        [
+          "usage",
+          "--provider",
+          "claude",
+          "--source",
+          "oauth",
+          "--format",
+          "json",
+          "--json-only",
+        ],
+      ]);
       expect(currentProfile.status_emoji).toBe(":battery:");
       expect(currentProfile.status_expiration).toBe(0);
     } finally {

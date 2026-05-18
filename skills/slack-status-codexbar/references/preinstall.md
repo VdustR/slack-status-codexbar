@@ -11,6 +11,7 @@ Verify these without printing secrets:
 - CodexBar app is configured with the desired providers.
 - `codexbar` is installed and runnable.
 - `codexbar config validate` passes.
+- `codexbar usage --provider claude --source oauth --format json --json-only` works when Claude is enabled.
 - A Slack user token source exists, but do not print the value.
 
 ## Missing Dependencies

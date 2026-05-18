@@ -50,13 +50,63 @@ export async function probeCodexBarUsage(
   runtime: Runtime,
   config: CodexBarConfig,
 ): Promise<AggregateSnapshot> {
-  const args = buildCodexBarArgs(config);
+  const baseResult = await runCodexBarUsage(
+    runtime,
+    config.command,
+    buildCodexBarArgs(config),
+  );
+  const providerSourceOverrides = config.providerSourceOverrides ?? {};
+  const overrideEntries = Object.entries(providerSourceOverrides).filter(
+    ([provider, source]) => provider.length > 0 && source.length > 0,
+  );
+  const nowMs = runtime.now();
+  let payloads = baseResult.payloads;
+  let exitCode = baseResult.exitCode;
+  let stderrLines = baseResult.stderrLines;
+
+  for (const [provider, source] of overrideEntries) {
+    const overrideResult = await runProviderSourceOverride(
+      runtime,
+      config.command,
+      provider,
+      source,
+    );
+    payloads = mergeProviderPayloads(payloads, overrideResult.payloads);
+    exitCode = Math.max(exitCode, overrideResult.exitCode);
+    stderrLines += overrideResult.stderrLines;
+  }
+
+  return {
+    capturedAt: new Date(nowMs).toISOString(),
+    source: {
+      kind: "codexbar-cli",
+      command: config.command,
+      providerSelection: config.providerSelection,
+      sourceMode: config.sourceMode,
+      providerSourceOverrides,
+      probeCount: 1 + overrideEntries.length,
+      exitCode,
+      stderrLines,
+    },
+    providers: payloads.map((payload) => normalizeProvider(payload, nowMs)),
+  };
+}
+
+async function runCodexBarUsage(
+  runtime: Runtime,
+  command: string,
+  args: string[],
+): Promise<{
+  payloads: RawCodexBarProvider[];
+  exitCode: number;
+  stderrLines: number;
+}> {
   let stdout = "";
   let stderr = "";
   let exitCode = 0;
 
   try {
-    const result = await runtime.execFile(config.command, args);
+    const result = await runtime.execFile(command, args);
     stdout = result.stdout;
     stderr = result.stderr;
   } catch (error: unknown) {
@@ -74,22 +124,10 @@ export async function probeCodexBarUsage(
   }
 
   const raw = parseCodexBarJSON(stdout);
-  const payloads = Array.isArray(raw) ? raw : [raw];
-  const nowMs = runtime.now();
-
   return {
-    capturedAt: new Date(nowMs).toISOString(),
-    source: {
-      kind: "codexbar-cli",
-      command: config.command,
-      providerSelection: config.providerSelection,
-      sourceMode: config.sourceMode,
-      exitCode,
-      stderrLines: stderr.trim() ? stderr.trim().split("\n").length : 0,
-    },
-    providers: payloads.map((payload) =>
-      normalizeProvider(payload as RawCodexBarProvider, nowMs),
-    ),
+    payloads: coercePayloads(raw),
+    exitCode,
+    stderrLines: countStderrLines(stderr),
   };
 }
 
@@ -103,6 +141,138 @@ export function buildCodexBarArgs(config: CodexBarConfig): string[] {
   }
   args.push("--format", "json", "--json-only");
   return args;
+}
+
+function buildProviderSourceOverrideArgs(
+  provider: string,
+  source: string,
+): string[] {
+  return [
+    "usage",
+    "--provider",
+    provider,
+    "--source",
+    source,
+    "--format",
+    "json",
+    "--json-only",
+  ];
+}
+
+async function runProviderSourceOverride(
+  runtime: Runtime,
+  command: string,
+  provider: string,
+  source: string,
+): Promise<{
+  payloads: RawCodexBarProvider[];
+  exitCode: number;
+  stderrLines: number;
+}> {
+  try {
+    const result = await runCodexBarUsage(
+      runtime,
+      command,
+      buildProviderSourceOverrideArgs(provider, source),
+    );
+    return {
+      ...result,
+      payloads: result.payloads.map((payload) =>
+        ensureOverridePayloadProvider(payload, provider, source),
+      ),
+    };
+  } catch (error: unknown) {
+    const err = error as Error & {
+      stderr?: string;
+      code?: number | string;
+    };
+    return {
+      payloads: [
+        {
+          provider,
+          source,
+          error: {
+            kind: "provider",
+            code:
+              typeof err.code === "number" || typeof err.code === "string"
+                ? err.code
+                : null,
+            message: err.message || "CodexBar provider override failed.",
+          },
+        },
+      ],
+      exitCode: typeof err.code === "number" ? err.code : 1,
+      stderrLines: countStderrLines(err.stderr ?? ""),
+    };
+  }
+}
+
+function coercePayloads(raw: unknown): RawCodexBarProvider[] {
+  return (Array.isArray(raw) ? raw : [raw]).map(
+    (payload) => payload as RawCodexBarProvider,
+  );
+}
+
+function mergeProviderPayloads(
+  basePayloads: RawCodexBarProvider[],
+  overridePayloads: RawCodexBarProvider[],
+): RawCodexBarProvider[] {
+  const overridesByProvider = new Map<string, RawCodexBarProvider[]>();
+  const providerlessOverrides: RawCodexBarProvider[] = [];
+
+  for (const overridePayload of overridePayloads) {
+    const provider = stringOrNull(overridePayload.provider);
+    if (!provider) {
+      providerlessOverrides.push(overridePayload);
+      continue;
+    }
+    const providerOverrides = overridesByProvider.get(provider) ?? [];
+    providerOverrides.push(overridePayload);
+    overridesByProvider.set(provider, providerOverrides);
+  }
+
+  if (overridesByProvider.size === 0) {
+    return [...basePayloads, ...providerlessOverrides];
+  }
+
+  const merged: RawCodexBarProvider[] = [];
+  const insertedProviders = new Set<string>();
+
+  for (const basePayload of basePayloads) {
+    const provider = stringOrNull(basePayload.provider);
+    if (provider && overridesByProvider.has(provider)) {
+      if (!insertedProviders.has(provider)) {
+        merged.push(...overridesByProvider.get(provider)!);
+        insertedProviders.add(provider);
+      }
+      continue;
+    }
+    merged.push(basePayload);
+  }
+
+  for (const [provider, providerOverrides] of overridesByProvider) {
+    if (!insertedProviders.has(provider)) {
+      merged.push(...providerOverrides);
+    }
+  }
+
+  return [...merged, ...providerlessOverrides];
+}
+
+function ensureOverridePayloadProvider(
+  payload: RawCodexBarProvider,
+  provider: string,
+  source: string,
+): RawCodexBarProvider {
+  return {
+    ...payload,
+    provider: stringOr(payload.provider, provider),
+    source: stringOr(payload.source, source),
+  };
+}
+
+function countStderrLines(stderr: string): number {
+  return stderr.trim() ? stderr.trim().split("\n").length : 0;
 }
 
 export function renderDefaultAggregateStatus(
