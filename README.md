@@ -2,7 +2,7 @@
 
 Unofficial Slack status integration powered by CodexBar.
 
-SlackStatusCodexBar reads CodexBar's local widget snapshot and syncs a compact multi-provider summary into your Slack custom status.
+SlackStatusCodexBar runs the CodexBar CLI and syncs a compact multi-provider summary into your Slack custom status.
 
 Slack renders the emoji separately from the status text. With the built-in formatter, a healthy status appears like this in Slack:
 
@@ -13,24 +13,18 @@ Slack renders the emoji separately from the status text. With the built-in forma
 ## Design
 
 - Agent-neutral: not tied to Claude Code, Codex, or any single provider.
-- CodexBar-owned provider configuration: enabled providers, source mode, token accounts, cookies, OAuth, API keys, and provider order are inherited from CodexBar.
+- CodexBar-owned provider configuration: enabled providers, source mode, token accounts, cookies, OAuth, API keys, and provider order are inherited from CodexBar CLI defaults.
 - LaunchAgent-based ambient refresh: macOS `launchd` runs refresh on an interval so the status remains active after setup.
 - Slack-only ownership: this project handles Slack profile writes, throttling, ownership checks, logs, and formatting.
 - No auto-expiration by default: Slack `status_expiration` is `0`.
 
-By default refresh reads CodexBar's widget snapshot from the app group container:
-
-```text
-~/Library/Group Containers/Y5PE65HELJ.com.steipete.codexbar/widget-snapshot.json
-```
-
-If the snapshot is missing, stale, or invalid, the integration falls back to:
+By default refresh runs:
 
 ```bash
 codexbar usage --format json --json-only
 ```
 
-The fallback intentionally does not pass `--provider` or `--source`.
+The command intentionally does not pass `--provider` or `--source`, so CodexBar decides the enabled providers and source mode. This integration does not read CodexBar's widget snapshot cache or app group container.
 
 ## Slack Status Examples
 
@@ -67,8 +61,8 @@ Slack then displays the emoji and text together:
 
 - Node 22+
 - `pnpm`
-- CodexBar app installed and writing `widget-snapshot.json`
-- CodexBar CLI installed as `codexbar` for fallback diagnostics
+- CodexBar app configured with the desired providers
+- CodexBar CLI installed as `codexbar`
 - Slack user token with `users.profile:read` and `users.profile:write`
   - `SLACK_STATUS_USER_TOKEN`, or
   - `SLACK_MCP_XOXP_TOKEN`
@@ -98,7 +92,7 @@ Secrets must stay separate from normal runtime config. Do not store Slack tokens
 
 SlackStatusCodexBar does not migrate or remove older Claude-specific hook installations. If another tool is also writing your Slack status, disable it manually before enabling this integration.
 
-The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when the CodexBar widget snapshot or CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
+The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when the CodexBar CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
 
 If CodexBar returns no usable provider windows or credit data, SlackStatusCodexBar skips the Slack profile update instead of writing an unavailable status. For `refresh --dry-run`, this returns `ok: false` with `profile: null`.
 

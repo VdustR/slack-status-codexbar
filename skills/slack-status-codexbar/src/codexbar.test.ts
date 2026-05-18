@@ -30,10 +30,17 @@ function runtimeWithExec(
 }
 
 describe("probeCodexBarUsage", () => {
-  it("prefers CodexBar widget snapshot and preserves GUI reset times", async () => {
+  it("uses CodexBar CLI even when the default widget snapshot cache exists", async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "codexbar-widget-"));
-    const snapshotPath = path.join(tempDir, "widget-snapshot.json");
+    const snapshotPath = path.join(
+      tempDir,
+      "Library",
+      "Group Containers",
+      "Y5PE65HELJ.com.steipete.codexbar",
+      "widget-snapshot.json",
+    );
     try {
+      await fs.mkdir(path.dirname(snapshotPath), { recursive: true });
       await fs.writeFile(
         snapshotPath,
         JSON.stringify({
@@ -61,25 +68,47 @@ describe("probeCodexBarUsage", () => {
         }),
       );
 
-      const runtime = runtimeWithExec(async () => {
-        throw new Error("CLI should not run when widget snapshot is available");
-      });
+      let cliCalled = false;
+      const runtime = {
+        ...runtimeWithExec(async (file, args) => {
+          cliCalled = true;
+          expect(file).toBe("codexbar");
+          expect(args).toEqual(["usage", "--format", "json", "--json-only"]);
+          return {
+            stdout: JSON.stringify([
+              {
+                provider: "codex",
+                source: "codex-cli",
+                usage: {
+                  primary: {
+                    usedPercent: 47,
+                    windowMinutes: 300,
+                    resetsAt: "2026-05-16T10:34:20Z",
+                  },
+                  updatedAt: "2026-05-16T08:36:49Z",
+                },
+              },
+            ]),
+            stderr: "",
+          };
+        }),
+        homeDir: tempDir,
+      };
       const aggregate = await probeCodexBarUsage(runtime, {
         command: "codexbar",
         timeoutMs: 45_000,
         providerSelection: "enabled",
         sourceMode: "default",
-        widgetSnapshotPath: snapshotPath,
-        widgetSnapshotMaxAgeMs: 10 * 60_000,
       });
 
-      expect(aggregate.source.kind).toBe("codexbar-widget-snapshot");
-      expect(aggregate.providers[0]!.provider).toBe("claude");
+      expect(cliCalled).toBe(true);
+      expect(aggregate.source.kind).toBe("codexbar-cli");
+      expect(aggregate.providers[0]!.provider).toBe("codex");
       expect(aggregate.providers[0]!.windows[0]!.resetAt).toBe(
-        "2026-05-16T12:00:00Z",
+        "2026-05-16T10:34:20Z",
       );
       expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-        statusText: "Claude 65%@5/16 20:00/90%@5/23 05:00",
+        statusText: "Codex 53%@5/16 18:34",
         statusEmoji: ":battery:",
       });
     } finally {

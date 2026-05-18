@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import type {
   AggregateRateWindow,
   AggregateSnapshot,
@@ -48,30 +46,10 @@ interface RawCodexBarProvider {
   } | null;
 }
 
-interface RawWidgetSnapshot {
-  generatedAt?: unknown;
-  enabledProviders?: unknown;
-  entries?: unknown;
-}
-
-interface RawWidgetEntry {
-  provider?: unknown;
-  source?: unknown;
-  account?: unknown;
-  primary?: RawCodexBarWindow | null;
-  secondary?: RawCodexBarWindow | null;
-  tertiary?: RawCodexBarWindow | null;
-  updatedAt?: unknown;
-  creditsRemaining?: unknown;
-}
-
 export async function probeCodexBarUsage(
   runtime: Runtime,
   config: CodexBarConfig,
 ): Promise<AggregateSnapshot> {
-  const widgetSnapshot = await loadWidgetSnapshotAggregate(runtime, config);
-  if (widgetSnapshot) return widgetSnapshot;
-
   const args = buildCodexBarArgs(config);
   let stdout = "";
   let stderr = "";
@@ -113,151 +91,6 @@ export async function probeCodexBarUsage(
       normalizeProvider(payload as RawCodexBarProvider, nowMs),
     ),
   };
-}
-
-async function loadWidgetSnapshotAggregate(
-  runtime: Runtime,
-  config: CodexBarConfig,
-): Promise<AggregateSnapshot | null> {
-  if (!shouldUseWidgetSnapshot(config)) return null;
-
-  for (const snapshotPath of widgetSnapshotCandidatePaths(runtime, config)) {
-    const aggregate = await readWidgetSnapshotAggregate(
-      runtime,
-      config,
-      snapshotPath,
-    );
-    if (aggregate) return aggregate;
-  }
-
-  return null;
-}
-
-function shouldUseWidgetSnapshot(config: CodexBarConfig): boolean {
-  return (
-    config.providerSelection === "enabled" && config.sourceMode === "default"
-  );
-}
-
-function widgetSnapshotCandidatePaths(
-  runtime: Runtime,
-  config: CodexBarConfig,
-): string[] {
-  if (config.widgetSnapshotPath) return [config.widgetSnapshotPath];
-
-  return [
-    path.join(
-      runtime.homeDir,
-      "Library",
-      "Group Containers",
-      "Y5PE65HELJ.com.steipete.codexbar",
-      "widget-snapshot.json",
-    ),
-    path.join(
-      runtime.homeDir,
-      "Library",
-      "Application Support",
-      "CodexBar",
-      "widget-snapshot.json",
-    ),
-  ];
-}
-
-async function readWidgetSnapshotAggregate(
-  runtime: Runtime,
-  config: CodexBarConfig,
-  snapshotPath: string,
-): Promise<AggregateSnapshot | null> {
-  let rawText: string;
-  let stat: { mtimeMs: number };
-  try {
-    const [text, fileStat] = await Promise.all([
-      fs.readFile(snapshotPath, "utf8"),
-      fs.stat(snapshotPath),
-    ]);
-    rawText = text;
-    stat = fileStat;
-  } catch {
-    return null;
-  }
-
-  const nowMs = runtime.now();
-  const maxAgeMs = config.widgetSnapshotMaxAgeMs ?? 10 * 60_000;
-  let raw: RawWidgetSnapshot;
-  try {
-    raw = JSON.parse(rawText) as RawWidgetSnapshot;
-  } catch {
-    return null;
-  }
-  const ageMs = widgetSnapshotAgeMs(raw.generatedAt, stat.mtimeMs, nowMs);
-  if (maxAgeMs > 0 && ageMs > maxAgeMs) return null;
-
-  if (!Array.isArray(raw.entries)) return null;
-  const providers = raw.entries
-    .map((entry) => normalizeWidgetEntry(entry as RawWidgetEntry, nowMs))
-    .filter((provider): provider is ProviderAggregateSnapshot => Boolean(provider));
-  if (providers.length === 0) return null;
-
-  return {
-    capturedAt: new Date(nowMs).toISOString(),
-    source: {
-      kind: "codexbar-widget-snapshot",
-      command: config.command,
-      providerSelection: config.providerSelection,
-      sourceMode: config.sourceMode,
-      exitCode: 0,
-      stderrLines: 0,
-      widgetSnapshotPath: snapshotPath,
-      widgetSnapshotAgeMs: ageMs,
-    },
-    providers: orderWidgetProviders(providers, raw.enabledProviders),
-  };
-}
-
-function normalizeWidgetEntry(
-  raw: RawWidgetEntry,
-  nowMs: number,
-): ProviderAggregateSnapshot | null {
-  const provider = stringOrNull(raw.provider);
-  if (!provider) return null;
-  const windows = [
-    normalizeWindow("primary", "Primary", raw.primary, nowMs),
-    normalizeWindow("secondary", "Secondary", raw.secondary, nowMs),
-    normalizeWindow("tertiary", "Tertiary", raw.tertiary, nowMs),
-  ].filter((window): window is AggregateRateWindow => Boolean(window));
-
-  return {
-    provider,
-    source: stringOr(raw.source, "widget-snapshot"),
-    accountLabel: redactAccount(stringOrNull(raw.account)),
-    updatedAt: stringOrNull(raw.updatedAt),
-    windows,
-    credits:
-      typeof raw.creditsRemaining === "number"
-        ? {
-            remaining: raw.creditsRemaining,
-            updatedAt: stringOrNull(raw.updatedAt),
-          }
-        : null,
-    error: null,
-  };
-}
-
-function orderWidgetProviders(
-  providers: ProviderAggregateSnapshot[],
-  enabledProviders: unknown,
-): ProviderAggregateSnapshot[] {
-  if (!Array.isArray(enabledProviders)) return providers;
-  const order = new Map(
-    enabledProviders
-      .filter((provider): provider is string => typeof provider === "string")
-      .map((provider, index) => [provider, index]),
-  );
-  return providers.toSorted(
-    (a, b) =>
-      (order.get(a.provider) ?? Number.MAX_SAFE_INTEGER) -
-      (order.get(b.provider) ?? Number.MAX_SAFE_INTEGER),
-  );
 }
 
 export function buildCodexBarArgs(config: CodexBarConfig): string[] {
@@ -650,15 +483,4 @@ function stringOrNull(value: unknown): string | null {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
-}
-
-function widgetSnapshotAgeMs(
-  generatedAt: unknown,
-  fileMtimeMs: number,
-  nowMs: number,
-): number {
-  const generatedAtMs =
-    typeof generatedAt === "string" ? Date.parse(generatedAt) : Number.NaN;
-  const referenceMs = Number.isNaN(generatedAtMs) ? fileMtimeMs : generatedAtMs;
-  return Math.max(0, nowMs - referenceMs);
 }
