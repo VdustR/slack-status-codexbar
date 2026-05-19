@@ -137,7 +137,26 @@ describe("probeCodexBarUsage", () => {
       async (file, args, options?: { env?: NodeJS.ProcessEnv }) => {
         expect(file).toBe("codexbar");
         expect(args).toEqual(["usage", "--format", "json", "--json-only"]);
+        expect(options?.env?.PATH).toBe("/usr/bin");
         expect(options?.env?.GEMINI_CLI_PATH).toBe("/opt/gemini/bin/gemini");
+        return { stdout: "[]", stderr: "" };
+      },
+    );
+    runtime.env = { PATH: "/usr/bin" };
+
+    await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      geminiCliPath: "/opt/gemini/bin/gemini",
+    });
+  });
+
+  it("preserves inherited CodexBar CLI environment when Gemini CLI path is unset", async () => {
+    const runtime = runtimeWithExec(
+      async (_file, _args, options?: { env?: NodeJS.ProcessEnv }) => {
+        expect(options?.env).toBeUndefined();
         return { stdout: "[]", stderr: "" };
       },
     );
@@ -147,7 +166,7 @@ describe("probeCodexBarUsage", () => {
       timeoutMs: 45_000,
       providerSelection: "enabled",
       sourceMode: "default",
-      geminiCliPath: "/opt/gemini/bin/gemini",
+      geminiCliPath: null,
     });
   });
 
