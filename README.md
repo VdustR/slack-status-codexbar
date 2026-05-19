@@ -32,6 +32,8 @@ codexbar usage --provider claude --source oauth --format json --json-only
 
 The Claude override matches CodexBar app behavior for accounts where the CLI's default Claude web source can report stale zero usage. This integration still stays CLI-only and does not read CodexBar's widget snapshot cache or app group container.
 
+When the Gemini provider uses CLI OAuth under `launchd`, set `codexbar.geminiCliPath` to the real Gemini CLI binary path discovered during setup. SlackStatusCodexBar passes it to CodexBar as `GEMINI_CLI_PATH`, so CodexBar can refresh expired Gemini OAuth credentials without relying on an interactive shell PATH.
+
 ## Slack Status Examples
 
 The built-in formatter writes Slack profile fields like:
@@ -69,6 +71,7 @@ Slack then displays the emoji and text together:
 - `pnpm`
 - CodexBar app configured with the desired providers
 - CodexBar CLI installed as `codexbar`
+- Real Gemini CLI binary path, when Gemini is enabled and installed through a shim manager such as mise
 - Slack user token with `users.profile:read` and `users.profile:write`
   - `SLACK_STATUS_USER_TOKEN`, or
   - `SLACK_MCP_XOXP_TOKEN`

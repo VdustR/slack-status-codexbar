@@ -80,8 +80,15 @@ export function createRuntime(options: RuntimeOptions = {}): Runtime {
     fetchImpl: options.fetchImpl ?? globalThis.fetch,
     execFile:
       options.execFile ??
-      (async (file: string, args: string[]) => {
-        const result = await execFileAsync(file, args);
+      (async (
+        file: string,
+        args: string[],
+        execOptions?: { env?: NodeJS.ProcessEnv; timeoutMs?: number },
+      ) => {
+        const result = await execFileAsync(file, args, {
+          env: execOptions?.env,
+          timeout: execOptions?.timeoutMs,
+        });
         return { stdout: result.stdout, stderr: result.stderr };
       }),
     now: options.now ?? (() => Date.now()),

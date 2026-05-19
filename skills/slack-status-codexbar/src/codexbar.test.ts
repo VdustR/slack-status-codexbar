@@ -132,6 +132,62 @@ describe("probeCodexBarUsage", () => {
     });
   });
 
+  it("passes configured Gemini CLI path to CodexBar through GEMINI_CLI_PATH", async () => {
+    const runtime = runtimeWithExec(
+      async (file, args, options?: { env?: NodeJS.ProcessEnv }) => {
+        expect(file).toBe("codexbar");
+        expect(args).toEqual(["usage", "--format", "json", "--json-only"]);
+        expect(options?.env?.PATH).toBe("/usr/bin");
+        expect(options?.env?.GEMINI_CLI_PATH).toBe("/opt/gemini/bin/gemini");
+        return { stdout: "[]", stderr: "" };
+      },
+    );
+    runtime.env = { PATH: "/usr/bin" };
+
+    await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      geminiCliPath: "/opt/gemini/bin/gemini",
+    });
+  });
+
+  it("preserves inherited CodexBar CLI environment when Gemini CLI path is unset", async () => {
+    const runtime = runtimeWithExec(
+      async (_file, _args, options?: { env?: NodeJS.ProcessEnv }) => {
+        expect(options?.env).toBeUndefined();
+        return { stdout: "[]", stderr: "" };
+      },
+    );
+
+    await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      geminiCliPath: null,
+    });
+  });
+
+  it("handles missing runtime env when injecting Gemini CLI path", async () => {
+    const runtime = runtimeWithExec(
+      async (_file, _args, options?: { env?: NodeJS.ProcessEnv }) => {
+        expect(options?.env?.GEMINI_CLI_PATH).toBe("/opt/gemini/bin/gemini");
+        return { stdout: "[]", stderr: "" };
+      },
+    );
+    delete (runtime as Partial<Runtime>).env;
+
+    await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      geminiCliPath: "/opt/gemini/bin/gemini",
+    });
+  });
+
   it("overrides individual provider sources without changing the default provider selection", async () => {
     const calls: string[][] = [];
     const runtime = runtimeWithExec(async (file, args) => {

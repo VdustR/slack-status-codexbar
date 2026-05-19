@@ -12,6 +12,7 @@ Verify these without printing secrets:
 - `codexbar` is installed and runnable.
 - `codexbar config validate` passes.
 - `codexbar usage --provider claude --source oauth --format json --json-only` works when Claude is enabled.
+- The real Gemini CLI binary path is known when Gemini is enabled through CLI OAuth. Use the package binary path, not a shim path.
 - A Slack user token source exists, but do not print the value.
 
 ## Missing Dependencies
@@ -22,6 +23,7 @@ For launchd installs, resolve absolute paths for:
 
 - Node runtime
 - `codexbar`
+- Gemini CLI, when Gemini is enabled through CLI OAuth
 - `envctl`, when `.env*` files are used
 - `dotenvx`, when `envctl` needs it under launchd
 

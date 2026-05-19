@@ -159,6 +159,7 @@ export interface CodexBarConfig {
   providerSelection: "enabled" | "all" | "both" | string;
   sourceMode: CodexBarSourceMode;
   providerSourceOverrides?: Record<string, CodexBarSourceMode>;
+  geminiCliPath?: string | null;
 }
 
 export interface LaunchdConfig {
@@ -192,6 +193,7 @@ export interface Runtime {
   execFile: (
     file: string,
     args: string[],
+    options?: { env?: NodeJS.ProcessEnv; timeoutMs?: number },
   ) => Promise<{ stdout: string; stderr: string }>;
   now: () => number;
 }
