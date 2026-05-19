@@ -15,6 +15,7 @@ export function createDefaultConfig(): AppConfig {
       providerSourceOverrides: {
         claude: "oauth",
       },
+      geminiCliPath: null,
     },
     launchd: {
       label: "dev.vdustr.slack-status-codexbar",

@@ -98,7 +98,8 @@ Default `config.json`:
     "sourceMode": "default",
     "providerSourceOverrides": {
       "claude": "oauth"
-    }
+    },
+    "geminiCliPath": null
   },
   "launchd": {
     "label": "dev.vdustr.slack-status-codexbar",
@@ -126,6 +127,8 @@ exec "<ENVCTL_PATH>" run --cwd "$APP_HOME" --home "$HOME" -- "<ABSOLUTE_NODE_PAT
 ```
 
 For LaunchAgent installs, set `codexbar.command` in the deployed `config.json` to the absolute `codexbar` path discovered during setup. This avoids depending on launchd PATH while still inheriting CodexBar provider settings.
+
+When Gemini is enabled through CLI OAuth, set `codexbar.geminiCliPath` in the deployed `config.json` to the real Gemini CLI binary path discovered during setup. Prefer the package binary path returned by tools such as `mise which gemini`; do not rely on a shim path or launchd's PATH. The runtime passes this value to CodexBar as `GEMINI_CLI_PATH`.
 
 ## LaunchAgent
 

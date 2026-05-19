@@ -50,10 +50,12 @@ export async function probeCodexBarUsage(
   runtime: Runtime,
   config: CodexBarConfig,
 ): Promise<AggregateSnapshot> {
+  const execOptions = buildCodexBarExecOptions(runtime, config);
   const baseResult = await runCodexBarUsage(
     runtime,
     config.command,
     buildCodexBarArgs(config),
+    execOptions,
   );
   const providerSourceOverrides = config.providerSourceOverrides ?? {};
   const overrideEntries = Object.entries(providerSourceOverrides).filter(
@@ -70,6 +72,7 @@ export async function probeCodexBarUsage(
       config.command,
       provider,
       source,
+      execOptions,
     );
     payloads = mergeProviderPayloads(payloads, overrideResult.payloads);
     exitCode = Math.max(exitCode, overrideResult.exitCode);
@@ -96,6 +99,7 @@ async function runCodexBarUsage(
   runtime: Runtime,
   command: string,
   args: string[],
+  options?: { env?: NodeJS.ProcessEnv; timeoutMs?: number },
 ): Promise<{
   payloads: RawCodexBarProvider[];
   exitCode: number;
@@ -106,7 +110,7 @@ async function runCodexBarUsage(
   let exitCode = 0;
 
   try {
-    const result = await runtime.execFile(command, args);
+    const result = await runtime.execFile(command, args, options);
     stdout = result.stdout;
     stderr = result.stderr;
   } catch (error: unknown) {
@@ -164,6 +168,7 @@ async function runProviderSourceOverride(
   command: string,
   provider: string,
   source: string,
+  options?: { env?: NodeJS.ProcessEnv; timeoutMs?: number },
 ): Promise<{
   payloads: RawCodexBarProvider[];
   exitCode: number;
@@ -174,6 +179,7 @@ async function runProviderSourceOverride(
       runtime,
       command,
       buildProviderSourceOverrideArgs(provider, source),
+      options,
     );
     return {
       ...result,
@@ -205,6 +211,23 @@ async function runProviderSourceOverride(
       stderrLines: countStderrLines(err.stderr ?? ""),
     };
   }
+}
+
+function buildCodexBarExecOptions(
+  runtime: Runtime,
+  config: CodexBarConfig,
+): { env?: NodeJS.ProcessEnv; timeoutMs?: number } {
+  const geminiCliPath =
+    typeof config.geminiCliPath === "string"
+      ? config.geminiCliPath.trim()
+      : "";
+
+  return {
+    env: geminiCliPath
+      ? { ...runtime.env, GEMINI_CLI_PATH: geminiCliPath }
+      : runtime.env,
+    timeoutMs: config.timeoutMs,
+  };
 }
 
 function coercePayloads(raw: unknown): RawCodexBarProvider[] {

@@ -29,6 +29,7 @@ describe("config", () => {
       providerSourceOverrides: {
         claude: "oauth",
       },
+      geminiCliPath: null,
     });
     expect(config.launchd.startIntervalSeconds).toBe(300);
   });
