@@ -170,6 +170,24 @@ describe("probeCodexBarUsage", () => {
     });
   });
 
+  it("handles missing runtime env when injecting Gemini CLI path", async () => {
+    const runtime = runtimeWithExec(
+      async (_file, _args, options?: { env?: NodeJS.ProcessEnv }) => {
+        expect(options?.env?.GEMINI_CLI_PATH).toBe("/opt/gemini/bin/gemini");
+        return { stdout: "[]", stderr: "" };
+      },
+    );
+    delete (runtime as Partial<Runtime>).env;
+
+    await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+      geminiCliPath: "/opt/gemini/bin/gemini",
+    });
+  });
+
   it("overrides individual provider sources without changing the default provider selection", async () => {
     const calls: string[][] = [];
     const runtime = runtimeWithExec(async (file, args) => {

@@ -224,7 +224,11 @@ function buildCodexBarExecOptions(
 
   return {
     env: geminiCliPath
-      ? { ...process.env, ...runtime.env, GEMINI_CLI_PATH: geminiCliPath }
+      ? {
+          ...process.env,
+          ...(runtime.env ?? {}),
+          GEMINI_CLI_PATH: geminiCliPath,
+        }
       : undefined,
     timeoutMs: config.timeoutMs,
   };
