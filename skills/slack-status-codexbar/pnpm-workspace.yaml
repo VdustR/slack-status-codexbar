@@ -1,2 +1,6 @@
 allowBuilds:
   esbuild: true
+
+overrides:
+  postcss: 8.5.25
+  vite: 8.2.0
