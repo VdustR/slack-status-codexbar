@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Slack status integration powered by CodexBar usage providers.",
   "type": "module",
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@11.18.0",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -15,9 +15,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^25.8.0",
-    "esbuild": "^0.28.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "@types/node": "^26.1.2",
+    "esbuild": "^0.28.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
