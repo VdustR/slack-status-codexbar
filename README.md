@@ -7,7 +7,7 @@ SlackStatusCodexBar runs the CodexBar CLI and syncs a compact multi-provider sum
 Slack renders the emoji separately from the status text. With the built-in formatter, a healthy status appears like this in Slack:
 
 ```text
-🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
+🔋 Codex 7d:70%@8/8 19:56 · Claude 5h:65%@8/3 14:59/7d:86%@8/8 04:59
 ```
 
 ## Design
@@ -41,7 +41,7 @@ The built-in formatter writes Slack profile fields like:
 ```json
 {
   "status_emoji": ":battery:",
-  "status_text": "Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00",
+  "status_text": "Codex 7d:70%@8/8 19:56 · Claude 5h:65%@8/3 14:59/7d:86%@8/8 04:59",
   "status_expiration": 0
 }
 ```
@@ -50,12 +50,14 @@ Slack then displays the emoji and text together:
 
 | Slack display | `status_emoji` | Example `status_text` | Meaning |
 | --- | --- | --- | --- |
-| 🔋 Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00 | `:battery:` | `Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00` | Healthy quota across displayed providers. |
-| 🪫 Codex 27%@18:34/42%@5/19 08:11 | `:low_battery:` | `Codex 27%@18:34/42%@5/19 08:11` | A displayed window is low, but not critical. |
-| ⚠️ Codex 15%@18:34/90%@5/19 08:10 | `:warning:` | `Codex 15%@18:34/90%@5/19 08:10` | A displayed short window is at the warning threshold. |
-| ⛔ Codex 0%@18:34/42%@5/19 08:11 | `:no_entry:` | `Codex 0%@18:34/42%@5/19 08:11` | A displayed quota window is exhausted. |
+| 🔋 Codex 7d:70%@8/8 19:56 | `:battery:` | `Codex 7d:70%@8/8 19:56` | Healthy quota across displayed providers. |
+| 🪫 Codex 7d:29%@8/8 19:56 | `:low_battery:` | `Codex 7d:29%@8/8 19:56` | A displayed window is low, but not critical. |
+| ⚠️ Codex 7d:14%@8/8 19:56 | `:warning:` | `Codex 7d:14%@8/8 19:56` | A displayed window is at the warning threshold. |
+| ⛔ Codex 7d:0%@8/8 19:56 | `:no_entry:` | `Codex 7d:0%@8/8 19:56` | A displayed quota window is exhausted. |
 
-`@18:34` and `@5/19 08:10` are compact reset labels. Approximate labels such as `@~5h` are used when CodexBar only reports the window duration.
+`5h:` and `7d:` are derived from CodexBar's current `windowMinutes`; `@18:34` and `@5/19 08:10` are compact reset labels. If CodexBar stops returning a five-hour window, the formatter omits it and labels the remaining windows from the durations CodexBar returns.
+
+Model-specific extra windows follow `formatter.extraWindows`: `all` always displays them, `active` (default) displays only windows with reported usage, and `hidden` omits them. Displayed extras use a compact CodexBar-derived name, for example `Spark 7d:80%`.
 
 ## Runtime Paths
 
@@ -101,7 +103,7 @@ Secrets must stay separate from normal runtime config. Do not store Slack tokens
 
 SlackStatusCodexBar does not migrate or remove older Claude-specific hook installations. If another tool is also writing your Slack status, disable it manually before enabling this integration.
 
-The built-in formatter hides providers that only return errors. Reset times are shown for each displayed rate-limit window when the CodexBar CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, the formatter shows an approximate label such as `@~5h`.
+The built-in formatter hides providers that only return errors. Window labels are derived from `windowMinutes` on each CodexBar probe, and reset times are shown when the CLI provides `resetDescription` or `resetsAt`. Only complete provider segments that fit Slack's 100-character status limit are included, so a provider is never shown as a truncated fragment.
 
 If CodexBar returns no usable provider windows or credit data, SlackStatusCodexBar skips the Slack profile update instead of writing an unavailable status. For `refresh --dry-run`, this returns `ok: false` with `profile: null`.
 

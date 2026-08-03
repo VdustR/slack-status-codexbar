@@ -91,6 +91,9 @@ Default `config.json`:
   "probeIntervalMs": 60000,
   "throttleIntervalMs": 30000,
   "statusLeaseSeconds": 0,
+  "formatter": {
+    "extraWindows": "active"
+  },
   "codexbar": {
     "command": "codexbar",
     "timeoutMs": 45000,
@@ -155,10 +158,12 @@ node "$HOME/Library/Application Support/SlackStatusCodexBar/hook.mjs" refresh --
 If no custom formatter exists, the built-in formatter produces a compact provider summary, for example:
 
 ```text
-Codex 53%@18:34/46%@5/19 08:10 · Claude 65%@5/16 20:00/90%@5/23 05:00
+Codex 7d:70%@8/8 19:56 · Claude 5h:65%@8/3 14:59/7d:86%@8/8 04:59
 ```
 
-The built-in formatter hides providers that only return errors. It appends reset time with `@` for each displayed rate-limit window when the CodexBar CLI provides `resetDescription` or `resetsAt`; if CodexBar only provides `windowMinutes`, it shows an approximate label such as `@~5h`.
+The built-in formatter hides providers that only return errors. It derives each rate-limit label, such as `5h`, `1d`, or `7d`, from the `windowMinutes` returned by the current CodexBar probe. It appends reset time with `@` when CodexBar also provides `resetDescription` or `resetsAt`, and includes only complete provider segments that fit Slack's 100-character status limit.
+
+`formatter.extraWindows` controls model-specific extra windows: `all` always displays them, `active` (default) displays only windows with reported usage, and `hidden` omits them. Displayed extras use a compact CodexBar-derived title such as `Spark 7d:`. Choose this in the deployed runtime config rather than treating it as a universal skill preference.
 
 If CodexBar returns no usable provider windows or credit data, skip the Slack profile update. Do not write a placeholder unavailable status.
 
