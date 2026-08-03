@@ -3,6 +3,7 @@ import type {
   AggregateSnapshot,
   CodexBarConfig,
   FormatResult,
+  FormatterConfig,
   ProviderAggregateSnapshot,
   Runtime,
 } from "./types.js";
@@ -304,34 +305,79 @@ function countStderrLines(stderr: string): number {
 
 export function renderDefaultAggregateStatus(
   aggregate: AggregateSnapshot,
+  formatterConfig: FormatterConfig = { extraWindows: "active" },
 ): FormatResult | null {
-  const usableProviders = aggregate.providers.filter(hasUsableProviderData);
+  const providerStatuses = aggregate.providers
+    .map((provider) => renderProviderStatus(provider, formatterConfig))
+    .filter((status): status is NonNullable<typeof status> => Boolean(status));
 
-  if (usableProviders.length === 0) {
+  if (providerStatuses.length === 0) {
     return null;
   }
 
-  const statusText = usableProviders
-    .map((provider) => {
-      const label = providerLabel(provider.provider);
-      if (provider.windows.length > 0) {
-        const percentages = provider.windows
-          .slice(0, 2)
-          .map(renderWindowStatus)
-          .join("/");
-        return `${label} ${percentages}`;
-      }
-      if (provider.credits) {
-        return `${label} $${provider.credits.remaining}`;
-      }
-      return `${label} err`;
-    })
-    .join(" · ");
+  const displayedWindows: AggregateRateWindow[] = [];
+  let statusText = "";
+
+  for (const providerStatus of providerStatuses) {
+    const candidate = statusText
+      ? `${statusText} · ${providerStatus.text}`
+      : providerStatus.text;
+    if (candidate.length > 100) break;
+    statusText = candidate;
+    displayedWindows.push(...providerStatus.windows);
+  }
+
+  if (!statusText) {
+    const providerStatus = providerStatuses[0]!;
+    statusText = providerStatus.text.slice(0, 100);
+    displayedWindows.push(...providerStatus.windows);
+  }
 
   return {
     statusText,
-    statusEmoji: severityEmoji(worstSeverity(aggregate)),
+    statusEmoji: severityEmoji(worstSeverity(displayedWindows)),
   };
+}
+
+function renderProviderStatus(
+  provider: ProviderAggregateSnapshot,
+  formatterConfig: FormatterConfig,
+): { text: string; windows: AggregateRateWindow[] } | null {
+  const label = providerLabel(provider.provider);
+  if (provider.windows.length > 0) {
+    const windows = selectDefaultWindows(provider, formatterConfig);
+    if (windows.length > 0) {
+      const percentages = windows
+        .map((window) => renderWindowStatus(window, provider))
+        .join("/");
+      return { text: `${label} ${percentages}`, windows };
+    }
+  }
+  if (provider.credits) {
+    return { text: `${label} $${provider.credits.remaining}`, windows: [] };
+  }
+  return null;
+}
+
+function selectDefaultWindows(
+  provider: ProviderAggregateSnapshot,
+  formatterConfig: FormatterConfig,
+): AggregateRateWindow[] {
+  const standardWindows = provider.windows.filter(isStandardRateWindow);
+  const extraWindows = provider.windows.filter(
+    (window) => !isStandardRateWindow(window),
+  );
+  const selectedExtraWindows =
+    formatterConfig.extraWindows === "all"
+      ? extraWindows
+      : formatterConfig.extraWindows === "active"
+        ? extraWindows.filter((window) => window.percentUsed > 0)
+        : [];
+  return [...standardWindows, ...selectedExtraWindows].slice(0, 2);
+}
+
+function isStandardRateWindow(window: AggregateRateWindow): boolean {
+  return ["primary", "secondary", "tertiary"].includes(window.id);
 }
 
 export function hasUsableAggregateData(aggregate: AggregateSnapshot): boolean {
@@ -342,10 +388,54 @@ function hasUsableProviderData(provider: ProviderAggregateSnapshot): boolean {
   return provider.windows.length > 0 || Boolean(provider.credits);
 }
 
-function renderWindowStatus(window: AggregateRateWindow): string {
+function renderWindowStatus(
+  window: AggregateRateWindow,
+  provider: ProviderAggregateSnapshot,
+): string {
+  const durationLabel = compactWindowDuration(window);
+  const extraLabel = isStandardRateWindow(window)
+    ? null
+    : compactExtraWindowTitle(window, provider);
+  const labels = [extraLabel, durationLabel].filter(
+    (label): label is string => Boolean(label),
+  );
+  const percentage = labels.length > 0
+    ? `${labels.join(" ")}:${window.percentLeft}%`
+    : `${window.percentLeft}%`;
   const resetLabel = compactResetLabel(window);
-  if (!resetLabel) return `${window.percentLeft}%`;
-  return `${window.percentLeft}%@${resetLabel}`;
+  if (!resetLabel || (durationLabel && resetLabel === `~${durationLabel}`)) {
+    return percentage;
+  }
+  return `${percentage}@${resetLabel}`;
+}
+
+function compactExtraWindowTitle(
+  window: AggregateRateWindow,
+  provider: ProviderAggregateSnapshot,
+): string {
+  const ignoredWords = new Set([
+    provider.provider.toLowerCase(),
+    providerLabel(provider.provider).toLowerCase(),
+    "daily",
+    "weekly",
+    "monthly",
+    "hourly",
+    "quota",
+    "limit",
+  ]);
+  const compact = window.title
+    .trim()
+    .split(/\s+/)
+    .filter((word) => !ignoredWords.has(word.toLowerCase()))
+    .join(" ");
+  return compact || window.title.trim();
+}
+
+function compactWindowDuration(window: AggregateRateWindow): string | null {
+  if (window.windowMinutes === null) return null;
+  const roundedMinutes = Math.round(window.windowMinutes);
+  if (!Number.isFinite(roundedMinutes) || roundedMinutes <= 0) return null;
+  return compactDurationParts(roundedMinutes);
 }
 
 function compactResetLabel(window: AggregateRateWindow): string | null {
@@ -454,21 +544,26 @@ function compactAbsoluteDescription(description: string): string | null {
 }
 
 function monthNumber(month: string): number | null {
-  const months: Record<string, number> = {
-    january: 1,
-    february: 2,
-    march: 3,
-    april: 4,
-    may: 5,
-    june: 6,
-    july: 7,
-    august: 8,
-    september: 9,
-    october: 10,
-    november: 11,
-    december: 12,
-  };
-  return months[month.toLowerCase()] ?? null;
+  const normalized = month.toLowerCase();
+  const months = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+  const index = months.findIndex(
+    (candidate) =>
+      candidate === normalized || candidate.slice(0, 3) === normalized,
+  );
+  return index === -1 ? null : index + 1;
 }
 
 function normalizeHour(hour: string, meridiem: string | null): string {
@@ -598,12 +693,10 @@ function normalizeExtraWindows(
   });
 }
 
-function worstSeverity(aggregate: AggregateSnapshot): number {
+function worstSeverity(windows: AggregateRateWindow[]): number {
   let worst = 0;
-  for (const provider of aggregate.providers) {
-    for (const window of provider.windows) {
-      worst = Math.max(worst, windowSeverity(window));
-    }
+  for (const window of windows) {
+    worst = Math.max(worst, windowSeverity(window));
   }
   return worst;
 }

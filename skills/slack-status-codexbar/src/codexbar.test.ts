@@ -109,7 +109,7 @@ describe("probeCodexBarUsage", () => {
         "2026-05-16T10:34:20Z",
       );
       expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-        statusText: "Codex 53%@18:34",
+        statusText: "Codex 5h:53%@18:34",
         statusEmoji: ":battery:",
       });
     } finally {
@@ -288,7 +288,7 @@ describe("probeCodexBarUsage", () => {
     expect(aggregate.providers[1]!.source).toBe("oauth");
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText:
-        "Codex 53%@18:34 · Claude 95%@5/18 14:00/89%@5/23 05:00 · Gemini 80%@5/19 08:00",
+        "Codex 5h:53%@18:34 · Claude 5h:95%@5/18 14:00/7d:89%@5/23 05:00 · Gemini 1d:80%@5/19 08:00",
       statusEmoji: ":battery:",
     });
   });
@@ -523,6 +523,106 @@ describe("probeCodexBarUsage", () => {
 });
 
 describe("renderDefaultAggregateStatus", () => {
+  it("follows CodexBar when Codex no longer returns a five-hour window", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "codex",
+          source: "oauth",
+          usage: {
+            primary: null,
+            secondary: {
+              usedPercent: 30,
+              windowMinutes: 10080,
+              resetDescription: "Aug 8 at 7:56 PM",
+            },
+            extraRateWindows: [
+              {
+                id: "codex-spark-weekly",
+                title: "Codex Spark Weekly",
+                window: {
+                  usedPercent: 0,
+                  windowMinutes: 10080,
+                  resetDescription: "Aug 10 at 10:47 AM",
+                },
+              },
+            ],
+          },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(aggregate.providers[0]!.windows.map((window) => window.id)).toEqual([
+      "secondary",
+      "codex-spark-weekly",
+    ]);
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText: "Codex 7d:70%@8/8 19:56",
+      statusEmoji: ":battery:",
+    });
+    expect(
+      renderDefaultAggregateStatus(aggregate, { extraWindows: "all" }),
+    ).toEqual({
+      statusText: "Codex 7d:70%@8/8 19:56/Spark 7d:100%@8/10 10:47",
+      statusEmoji: ":battery:",
+    });
+  });
+
+  it("names an extra Codex window after it has active usage", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "codex",
+          source: "oauth",
+          usage: {
+            secondary: {
+              usedPercent: 30,
+              windowMinutes: 10080,
+              resetDescription: "Aug 8 at 7:56 PM",
+            },
+            extraRateWindows: [
+              {
+                id: "codex-spark-weekly",
+                title: "Codex Spark Weekly",
+                window: {
+                  usedPercent: 20,
+                  windowMinutes: 10080,
+                  resetDescription: "Aug 10 at 10:47 AM",
+                },
+              },
+            ],
+          },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText:
+        "Codex 7d:70%@8/8 19:56/Spark 7d:80%@8/10 10:47",
+      statusEmoji: ":battery:",
+    });
+    expect(
+      renderDefaultAggregateStatus(aggregate, { extraWindows: "hidden" }),
+    ).toEqual({
+      statusText: "Codex 7d:70%@8/8 19:56",
+      statusEmoji: ":battery:",
+    });
+  });
+
   it("renders multiple provider windows into a compact Slack status", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
@@ -572,7 +672,7 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText:
-        "Codex 53%@18:34/46%@5/19 08:10 · Claude 78%@13:00/92%@5/20 09:00",
+        "Codex 5h:53%@18:34/7d:46%@5/19 08:10 · Claude 5h:78%@13:00/7d:92%@5/20 09:00",
       statusEmoji: ":battery:",
     });
   });
@@ -616,7 +716,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 27%@18:34/42%@5/19 08:11",
+      statusText: "Codex 5h:27%@18:34/7d:42%@5/19 08:11",
       statusEmoji: ":low_battery:",
     });
   });
@@ -651,7 +751,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 90%@18:34/30%@5/19 08:10",
+      statusText: "Codex 5h:90%@18:34/7d:30%@5/19 08:10",
       statusEmoji: ":battery:",
     });
   });
@@ -686,7 +786,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 90%@18:34/29%@5/19 08:10",
+      statusText: "Codex 5h:90%@18:34/7d:29%@5/19 08:10",
       statusEmoji: ":low_battery:",
     });
   });
@@ -721,7 +821,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 90%@18:34/14%@5/19 08:10",
+      statusText: "Codex 5h:90%@18:34/7d:14%@5/19 08:10",
       statusEmoji: ":warning:",
     });
   });
@@ -756,12 +856,12 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 15%@18:34/90%@5/19 08:10",
+      statusText: "Codex 5h:15%@18:34/7d:90%@5/19 08:10",
       statusEmoji: ":warning:",
     });
   });
 
-  it("compacts reset labels enough for the common three-provider status", async () => {
+  it("keeps complete providers within Slack's status length limit", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
         {
@@ -804,6 +904,17 @@ describe("renderDefaultAggregateStatus", () => {
             },
           },
         },
+        {
+          provider: "overflowing-provider",
+          source: "test",
+          usage: {
+            primary: {
+              usedPercent: 100,
+              windowMinutes: 300,
+              resetDescription: "Resets in 4h 59m",
+            },
+          },
+        },
       ]),
       stderr: "",
     }));
@@ -817,12 +928,13 @@ describe("renderDefaultAggregateStatus", () => {
     const result = renderDefaultAggregateStatus(aggregate);
 
     expect(result?.statusText).toBe(
-      "Codex 25%@18:34/41%@5/19 08:11 · Claude 100%@~5h/100%@~7d · Gemini 100%@23h59/100%@23h59",
+      "Codex 5h:25%@18:34/7d:41%@5/19 08:11 · Claude 5h:100%/7d:100% · Gemini 1d:100%@23h59/1d:100%@23h59",
     );
     expect(result?.statusText.length).toBeLessThanOrEqual(100);
+    expect(result?.statusEmoji).toBe(":low_battery:");
   });
 
-  it("uses approximate reset labels when CodexBar only reports window duration", async () => {
+  it("uses duration labels when CodexBar only reports window duration", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
         {
@@ -844,7 +956,7 @@ describe("renderDefaultAggregateStatus", () => {
     });
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Claude 100%@~5h/100%@~7d",
+      statusText: "Claude 5h:100%/7d:100%",
       statusEmoji: ":battery:",
     });
   });

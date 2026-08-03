@@ -21,6 +21,7 @@ describe("config", () => {
     expect(config.probeIntervalMs).toBe(60_000);
     expect(config.throttleIntervalMs).toBe(30_000);
     expect(config.statusLeaseSeconds).toBe(0);
+    expect(config.formatter).toEqual({ extraWindows: "active" });
     expect(config.codexbar).toEqual({
       command: "codexbar",
       timeoutMs: 45_000,
@@ -39,8 +40,23 @@ describe("config", () => {
     const configPath = path.join(tempDir, "config.json");
     const config = createDefaultConfig();
     config.probeIntervalMs = 120_000;
+    config.formatter.extraWindows = "hidden";
     await saveConfig(configPath, config);
     const loaded = await loadConfig(configPath);
     expect(loaded.probeIntervalMs).toBe(120_000);
+    expect(loaded.formatter.extraWindows).toBe("hidden");
+  });
+
+  it("defaults invalid extra-window policies for existing config files", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "config-test-"));
+    const configPath = path.join(tempDir, "config.json");
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({ version: 2, formatter: { extraWindows: "sometimes" } }),
+    );
+
+    const loaded = await loadConfig(configPath);
+
+    expect(loaded.formatter.extraWindows).toBe("active");
   });
 });

@@ -106,7 +106,7 @@ describe("handleRefresh", () => {
       await handleRefresh(runtime);
 
       expect(currentProfile.status_text).toBe(
-        "Codex 53%@18:34/46%@5/19 08:10 · Claude 78%@13:00/92%@5/20 09:00",
+        "Codex 5h:53%@18:34/7d:46%@5/19 08:10 · Claude 5h:78%@13:00/7d:92%@5/20 09:00",
       );
       expect(calls).toEqual([
         ["usage", "--format", "json", "--json-only"],
@@ -161,7 +161,9 @@ describe("handleRefresh", () => {
     try {
       const profile = await handleRefresh(runtime, { dryRun: true });
 
-      expect(profile?.status_text).toBe("Codex 53%@18:34/46%@5/19 08:10");
+      expect(profile?.status_text).toBe(
+        "Codex 5h:53%@18:34/7d:46%@5/19 08:10",
+      );
       expect(profile?.status_expiration).toBe(0);
       await expect(fs.access(runtime.statePath)).rejects.toThrow();
       await expect(fs.access(runtime.logPath)).rejects.toThrow();

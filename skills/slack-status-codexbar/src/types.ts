@@ -88,6 +88,12 @@ export interface FormatResult {
 
 export type FormatStatusFn = (snapshot: QuotaSnapshot | AggregateSnapshot) => FormatResult;
 
+export type ExtraWindowPolicy = "all" | "active" | "hidden";
+
+export interface FormatterConfig {
+  extraWindows: ExtraWindowPolicy;
+}
+
 export interface SlackProfile {
   status_text: string;
   status_emoji: string;
@@ -149,6 +155,7 @@ export interface AppConfig {
   probeIntervalMs: number;
   throttleIntervalMs: number;
   statusLeaseSeconds: number;
+  formatter: FormatterConfig;
   codexbar: CodexBarConfig;
   launchd: LaunchdConfig;
 }

@@ -9,6 +9,7 @@ import type {
   AggregateSnapshot,
   FormatResult,
   FormatStatusFn,
+  FormatterConfig,
   HookEvent,
   QuotaSnapshot,
   Runtime,
@@ -125,6 +126,7 @@ function fallbackFormat(snapshot: QuotaSnapshot): FormatResult {
 async function formatAggregateStatus(
   runtime: Runtime,
   snapshot: AggregateSnapshot,
+  formatterConfig: FormatterConfig,
 ): Promise<FormatResult | null> {
   if (!hasUsableAggregateData(snapshot)) return null;
 
@@ -140,7 +142,7 @@ async function formatAggregateStatus(
   } catch {
     // Fall through to the built-in aggregate formatter.
   }
-  return renderDefaultAggregateStatus(snapshot);
+  return renderDefaultAggregateStatus(snapshot, formatterConfig);
 }
 
 export interface RefreshOptions {
@@ -157,6 +159,7 @@ export async function handleRefresh(
     const formatted = await formatAggregateStatus(
       runtime,
       aggregate,
+      config.formatter,
     );
     if (!formatted) return null;
 
@@ -214,6 +217,7 @@ export async function handleRefresh(
     const formatted = await formatAggregateStatus(
       runtime,
       aggregate,
+      config.formatter,
     );
     if (!formatted) {
       await saveState(runtime.statePath, state);
