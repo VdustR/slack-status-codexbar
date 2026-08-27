@@ -523,7 +523,7 @@ describe("probeCodexBarUsage", () => {
 });
 
 describe("renderDefaultAggregateStatus", () => {
-  it("follows CodexBar when Codex no longer returns a five-hour window", async () => {
+  it("omits a Codex window when CodexBar has no current reading", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
         {
@@ -957,6 +957,35 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText: "Claude 5h:100%/7d:100%",
+      statusEmoji: ":battery:",
+    });
+  });
+
+  it("omits an oversized provider instead of truncating its segment", async () => {
+    const runtime = runtimeWithExec(async () => ({
+      stdout: JSON.stringify([
+        {
+          provider: "provider-with-a-name-that-cannot-fit-in-a-slack-status-even-before-its-usage-window-is-rendered-because-it-is-far-too-long",
+          source: "test",
+          usage: { primary: { usedPercent: 10, windowMinutes: 300 } },
+        },
+        {
+          provider: "claude",
+          source: "test",
+          usage: { primary: { usedPercent: 20, windowMinutes: 300 } },
+        },
+      ]),
+      stderr: "",
+    }));
+    const aggregate = await probeCodexBarUsage(runtime, {
+      command: "codexbar",
+      timeoutMs: 45_000,
+      providerSelection: "enabled",
+      sourceMode: "default",
+    });
+
+    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
+      statusText: "Claude 5h:80%",
       statusEmoji: ":battery:",
     });
   });

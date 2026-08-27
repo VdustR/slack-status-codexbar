@@ -55,7 +55,7 @@ Slack then displays the emoji and text together:
 | ⚠️ Codex 7d:14%@8/8 19:56 | `:warning:` | `Codex 7d:14%@8/8 19:56` | A displayed window is at the warning threshold. |
 | ⛔ Codex 7d:0%@8/8 19:56 | `:no_entry:` | `Codex 7d:0%@8/8 19:56` | A displayed quota window is exhausted. |
 
-`5h:` and `7d:` are derived from CodexBar's current `windowMinutes`; `@18:34` and `@5/19 08:10` are compact reset labels. If CodexBar stops returning a five-hour window, the formatter omits it and labels the remaining windows from the durations CodexBar returns.
+`5h:` and `7d:` are derived from CodexBar's current `windowMinutes`; `@18:34` and `@5/19 08:10` are compact reset labels. Codex has standard five-hour and weekly limits, but the formatter only displays windows with a current CodexBar reading. A missing label means that reading was unavailable, not that the limit does not exist. Codex Spark limits remain separately named extra windows.
 
 Model-specific extra windows follow `formatter.extraWindows`: `all` always displays them, `active` (default) displays only windows with reported usage, and `hidden` omits them. Displayed extras use a compact CodexBar-derived name, for example `Spark 7d:80%`.
 
@@ -103,7 +103,7 @@ Secrets must stay separate from normal runtime config. Do not store Slack tokens
 
 SlackStatusCodexBar does not migrate or remove older Claude-specific hook installations. If another tool is also writing your Slack status, disable it manually before enabling this integration.
 
-The built-in formatter hides providers that only return errors. Window labels are derived from `windowMinutes` on each CodexBar probe, and reset times are shown when the CLI provides `resetDescription` or `resetsAt`. Only complete provider segments that fit Slack's 100-character status limit are included, so a provider is never shown as a truncated fragment.
+The built-in formatter hides providers that only return errors. Window labels are derived from `windowMinutes` on each CodexBar probe, and reset times are shown when the CLI provides `resetDescription` or `resetsAt`. Windows without a current reading are omitted. Only complete provider segments that fit Slack's 100-character status limit are included, so a provider is never shown as a truncated fragment.
 
 If CodexBar returns no usable provider windows or credit data, SlackStatusCodexBar skips the Slack profile update instead of writing an unavailable status. For `refresh --dry-run`, this returns `ok: false` with `profile: null`.
 

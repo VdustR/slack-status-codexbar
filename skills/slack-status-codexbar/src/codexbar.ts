@@ -322,16 +322,12 @@ export function renderDefaultAggregateStatus(
     const candidate = statusText
       ? `${statusText} · ${providerStatus.text}`
       : providerStatus.text;
-    if (candidate.length > 100) break;
+    if (candidate.length > 100) continue;
     statusText = candidate;
     displayedWindows.push(...providerStatus.windows);
   }
 
-  if (!statusText) {
-    const providerStatus = providerStatuses[0]!;
-    statusText = providerStatus.text.slice(0, 100);
-    displayedWindows.push(...providerStatus.windows);
-  }
+  if (!statusText) return null;
 
   return {
     statusText,
