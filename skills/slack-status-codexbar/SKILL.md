@@ -158,12 +158,12 @@ node "$HOME/Library/Application Support/SlackStatusCodexBar/hook.mjs" refresh --
 If no custom formatter exists, the built-in formatter produces a compact provider summary, for example:
 
 ```text
-Codex 5h:?/7d:70%@8/8 19:56 · Claude 5h:65%@8/3 14:59/7d:86%@8/8 04:59
+Codex 7d:70%@8/8 19:56 · Claude 5h:65%@8/3 14:59/7d:86%@8/8 04:59
 ```
 
 The built-in formatter hides providers that only return errors. It derives each rate-limit label, such as `5h`, `1d`, or `7d`, from the `windowMinutes` returned by the current CodexBar probe. It appends reset time with `@` when CodexBar also provides `resetDescription` or `resetsAt`, and includes only complete provider segments that fit Slack's 100-character status limit.
 
-Codex has standard five-hour and weekly usage limits. When CodexBar omits either current standard-window reading, render it as `5h:?` or `7d:?`; do not infer that the limit no longer exists. Codex Spark limits are separate named extra windows and must not replace a missing standard Codex window.
+Codex has standard five-hour and weekly usage limits. Display only windows with a current CodexBar reading. Do not infer from an omitted label that the limit no longer exists, and do not use a separate Codex Spark extra window to replace a missing standard Codex window.
 
 `formatter.extraWindows` controls model-specific extra windows: `all` always displays them, `active` (default) displays only windows with reported usage, and `hidden` omits them. Displayed extras use a compact CodexBar-derived title such as `Spark 7d:`. Choose this in the deployed runtime config rather than treating it as a universal skill preference.
 

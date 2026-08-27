@@ -109,7 +109,7 @@ describe("probeCodexBarUsage", () => {
         "2026-05-16T10:34:20Z",
       );
       expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-        statusText: "Codex 5h:53%@18:34/7d:?",
+        statusText: "Codex 5h:53%@18:34",
         statusEmoji: ":battery:",
       });
     } finally {
@@ -288,7 +288,7 @@ describe("probeCodexBarUsage", () => {
     expect(aggregate.providers[1]!.source).toBe("oauth");
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText:
-        "Codex 5h:53%@18:34/7d:? · Claude 5h:95%@5/18 14:00/7d:89%@5/23 05:00 · Gemini 1d:80%@5/19 08:00",
+        "Codex 5h:53%@18:34 · Claude 5h:95%@5/18 14:00/7d:89%@5/23 05:00 · Gemini 1d:80%@5/19 08:00",
       statusEmoji: ":battery:",
     });
   });
@@ -523,7 +523,7 @@ describe("probeCodexBarUsage", () => {
 });
 
 describe("renderDefaultAggregateStatus", () => {
-  it("marks the Codex five-hour reading unavailable when CodexBar omits it", async () => {
+  it("omits a Codex window when CodexBar has no current reading", async () => {
     const runtime = runtimeWithExec(async () => ({
       stdout: JSON.stringify([
         {
@@ -564,14 +564,13 @@ describe("renderDefaultAggregateStatus", () => {
       "codex-spark-weekly",
     ]);
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 5h:?/7d:70%@8/8 19:56",
+      statusText: "Codex 7d:70%@8/8 19:56",
       statusEmoji: ":battery:",
     });
     expect(
       renderDefaultAggregateStatus(aggregate, { extraWindows: "all" }),
     ).toEqual({
-      statusText:
-        "Codex 5h:?/7d:70%@8/8 19:56/Spark 7d:100%@8/10 10:47",
+      statusText: "Codex 7d:70%@8/8 19:56/Spark 7d:100%@8/10 10:47",
       statusEmoji: ":battery:",
     });
   });
@@ -613,13 +612,13 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText:
-        "Codex 5h:?/7d:70%@8/8 19:56/Spark 7d:80%@8/10 10:47",
+        "Codex 7d:70%@8/8 19:56/Spark 7d:80%@8/10 10:47",
       statusEmoji: ":battery:",
     });
     expect(
       renderDefaultAggregateStatus(aggregate, { extraWindows: "hidden" }),
     ).toEqual({
-      statusText: "Codex 5h:?/7d:70%@8/8 19:56",
+      statusText: "Codex 7d:70%@8/8 19:56",
       statusEmoji: ":battery:",
     });
   });
@@ -958,32 +957,6 @@ describe("renderDefaultAggregateStatus", () => {
 
     expect(renderDefaultAggregateStatus(aggregate)).toEqual({
       statusText: "Claude 5h:100%/7d:100%",
-      statusEmoji: ":battery:",
-    });
-  });
-
-  it("marks the Codex weekly reading unavailable when CodexBar omits it", async () => {
-    const runtime = runtimeWithExec(async () => ({
-      stdout: JSON.stringify([
-        {
-          provider: "codex",
-          source: "oauth",
-          usage: {
-            primary: { usedPercent: 25, windowMinutes: 300 },
-          },
-        },
-      ]),
-      stderr: "",
-    }));
-    const aggregate = await probeCodexBarUsage(runtime, {
-      command: "codexbar",
-      timeoutMs: 45_000,
-      providerSelection: "enabled",
-      sourceMode: "default",
-    });
-
-    expect(renderDefaultAggregateStatus(aggregate)).toEqual({
-      statusText: "Codex 5h:75%/7d:?",
       statusEmoji: ":battery:",
     });
   });
