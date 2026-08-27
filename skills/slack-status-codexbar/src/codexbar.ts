@@ -322,16 +322,12 @@ export function renderDefaultAggregateStatus(
     const candidate = statusText
       ? `${statusText} · ${providerStatus.text}`
       : providerStatus.text;
-    if (candidate.length > 100) break;
+    if (candidate.length > 100) continue;
     statusText = candidate;
     displayedWindows.push(...providerStatus.windows);
   }
 
-  if (!statusText) {
-    const providerStatus = providerStatuses[0]!;
-    statusText = providerStatus.text.slice(0, 100);
-    displayedWindows.push(...providerStatus.windows);
-  }
+  if (!statusText) return null;
 
   return {
     statusText,
@@ -347,9 +343,7 @@ function renderProviderStatus(
   if (provider.windows.length > 0) {
     const windows = selectDefaultWindows(provider, formatterConfig);
     if (windows.length > 0) {
-      const percentages = windows
-        .map((window) => renderWindowStatus(window, provider))
-        .join("/");
+      const percentages = renderWindowStatuses(provider, windows).join("/");
       return { text: `${label} ${percentages}`, windows };
     }
   }
@@ -357,6 +351,25 @@ function renderProviderStatus(
     return { text: `${label} $${provider.credits.remaining}`, windows: [] };
   }
   return null;
+}
+
+function renderWindowStatuses(
+  provider: ProviderAggregateSnapshot,
+  windows: AggregateRateWindow[],
+): string[] {
+  if (provider.provider.toLowerCase() !== "codex") {
+    return windows.map((window) => renderWindowStatus(window, provider));
+  }
+  const primary = windows.find((window) => window.id === "primary");
+  const secondary = windows.find((window) => window.id === "secondary");
+  const otherWindows = windows.filter(
+    (window) => !["primary", "secondary"].includes(window.id),
+  );
+  return [
+    primary ? renderWindowStatus(primary, provider) : "5h:?",
+    secondary ? renderWindowStatus(secondary, provider) : "7d:?",
+    ...otherWindows.map((window) => renderWindowStatus(window, provider)),
+  ];
 }
 
 function selectDefaultWindows(
