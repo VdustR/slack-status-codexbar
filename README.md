@@ -1,5 +1,8 @@
 # slack-status-codexbar
 
+> [!WARNING]
+> This repository is no longer maintained. No further updates or support will be provided.
+
 Unofficial Slack status integration powered by CodexBar.
 
 SlackStatusCodexBar runs the CodexBar CLI and syncs a compact multi-provider summary into your Slack custom status.
